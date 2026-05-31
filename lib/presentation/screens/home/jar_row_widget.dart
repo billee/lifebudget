@@ -6,7 +6,6 @@ import '../../../core/constants/app_strings.dart';
 class JarRowWidget extends StatelessWidget {
   const JarRowWidget({super.key});
 
-  // Mock jar data – each jar now uses an IconData instead of an emoji
   final jars = const [
     _JarData(AppStrings.jarFood, AppColors.food, 1200, 800, Icons.restaurant),
     _JarData(AppStrings.jarRent, AppColors.rent, 5000, 0, Icons.home),
