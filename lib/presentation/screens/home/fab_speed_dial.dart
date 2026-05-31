@@ -105,37 +105,40 @@ class _MiniFAB extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _MiniFAB({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _MiniFAB(
+      {required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            child: Text(
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
               label,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary),
             ),
-          ),
-          const SizedBox(width: 8),
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: AppColors.primary.withOpacity(0.8),
-            child: Icon(icon, color: Colors.white, size: 20),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Icon(icon, size: 20, color: AppColors.primary),
+          ],
+        ),
       ),
     );
   }

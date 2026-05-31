@@ -1,21 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
-import '../../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_colors.dart';
 
 class HealthRingWidget extends StatelessWidget {
   const HealthRingWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Mock: 4200 left of 18000 => ~23.3% used, 76.7% left? Our ring shows "left to use".
+    // Mock data – will be replaced with real provider later
     const double leftAmount = 4200;
     const double totalBudget = 18000;
-    final double percentLeft = leftAmount /
-        totalBudget; // 0.233 -> that's low? Wait, design says ring fills as money is used.
-    // Actually design: ring fills with color as money is used. So percentageUsed = 1 - percentLeft.
-    // Ring should show "left to use" amount inside. The ring fill = percentageUsed.
-    final double usedPercent = 1 - percentLeft; // 0.767
-    // Color from green -> amber -> soft red based on usage
+    final double percentLeft = leftAmount / totalBudget; // 0.233…
+    final double usedPercent = 1 - percentLeft; // ring fills as money is used
+
+    // Colour changes from green → amber → soft red depending on usage
     Color ringColor;
     if (usedPercent <= 0.7) {
       ringColor = AppColors.onTrack;
@@ -51,10 +49,8 @@ class HealthRingWidget extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'of your ₱${totalBudget.toInt()}',
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
+              style:
+                  const TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
           ],
         ),

@@ -3,6 +3,7 @@ import 'health_ring_widget.dart';
 import 'jar_row_widget.dart';
 import 'focus_card_widget.dart';
 import 'home_header.dart';
+import 'daily_allowance_card.dart'; // <-- NEW import
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -21,7 +22,14 @@ class HomeScreen extends StatelessWidget {
 
             // Health Ring
             HealthRingWidget(),
-            SizedBox(height: 24),
+            SizedBox(height: 16),
+
+            // Daily "safe to spend" card
+            DailyAllowanceCard(
+              dailyAllowance: 4200 / 14, // mock: remaining ÷ days left
+              daysLeft: 14,
+            ),
+            SizedBox(height: 16),
 
             // Jars Row
             JarRowWidget(),
