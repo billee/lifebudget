@@ -1,0 +1,65 @@
+gradle-wrapper.jar
+/.gradle
+/captures/
+/gradlew
+/gradlew.bat
+/local.properties
+GeneratedPluginRegistrant.java
+.cxx/
+
+# Remember to never publicly share your keystore.
+# See https://flutter.dev/to/reference-keystore
+key.properties
+**/*.keystore
+**/*.jks
+
+# Tooling artifacts
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+.metadata
+
+# Build artifacts
+build/
+
+# Web specific overrides
+web/flutter_bootstrap.js
+
+# Android specific overrides
+android/.gradle/
+android/local.properties
+android/generated_plugin_registrant.dart
+
+# iOS/macOS specific overrides
+ios/.pages/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/Flutter.podspec
+ios/DerivedData/
+macos/Flutter/Generated.xcconfig
+macos/Flutter/flutter_export_environment.sh
+param/
+Pods/
+.symlinks/
+*.podspec
+mode.makefile
+mode.tcl
+
+# Linux specific overrides
+linux/flutter/ephemeral/
+
+# Windows specific overrides
+windows/flutter/ephemeral/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.iml
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
