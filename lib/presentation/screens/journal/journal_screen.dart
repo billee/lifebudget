@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import '../../widgets/common/lifebudget_scaffold.dart';
 
 class JournalScreen extends StatelessWidget {
   const JournalScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return LifeBudgetScaffold(
       appBar: AppBar(title: const Text('Journal')),
       body: const Center(child: Text('Journal coming soon!')),
     );

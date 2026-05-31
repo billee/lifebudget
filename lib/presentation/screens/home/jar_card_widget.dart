@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/utils/emotional_tone_helper.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/emotional_tone_helper.dart';
 
 class JarCardWidget extends StatelessWidget {
-  final String emoji;
+  final IconData icon;
   final String name;
   final double remaining;
   final double total;
@@ -11,7 +11,7 @@ class JarCardWidget extends StatelessWidget {
 
   const JarCardWidget({
     super.key,
-    required this.emoji,
+    required this.icon,
     required this.name,
     required this.remaining,
     required this.total,
@@ -23,7 +23,7 @@ class JarCardWidget extends StatelessWidget {
     final double usedPercent = (total - remaining) / total;
     final String status = getJarStatusLabel(usedPercent);
     return GestureDetector(
-      onTap: () {}, // tap to open jar detail (future)
+      onTap: () {},
       child: Container(
         width: 140,
         padding: const EdgeInsets.all(12),
@@ -34,15 +34,19 @@ class JarCardWidget extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '$emoji $name',
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            Row(
+              children: [
+                Icon(icon, size: 16, color: AppColors.textPrimary),
+                const SizedBox(width: 4),
+                Text(name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 13)),
+              ],
             ),
             const SizedBox(height: 6),
-            Text(
-              '₱${remaining.toInt()}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
+            Text('₱${remaining.toInt()}',
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 6),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
@@ -54,10 +58,8 @@ class JarCardWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              status,
-              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-            ),
+            Text(status,
+                style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
           ],
         ),
       ),

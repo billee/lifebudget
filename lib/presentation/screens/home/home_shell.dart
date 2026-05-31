@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import 'fab_speed_dial.dart';
+import '../../widgets/common/lifebudget_scaffold.dart';
 
 class HomeShell extends StatefulWidget {
   final Widget child;
@@ -52,7 +53,7 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final currentIndex = _currentIndex(context);
-    return Scaffold(
+    return LifeBudgetScaffold(
       body: Stack(
         children: [
           widget.child,
