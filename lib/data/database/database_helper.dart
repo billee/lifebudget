@@ -22,22 +22,32 @@ class DatabaseHelper {
 
   Future<void> _createDB(Database db, int version) async {
     await db.execute('''
-      CREATE TABLE ${DatabaseConstants.transactionsTable} (
-        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
-        ${DatabaseConstants.colType} TEXT NOT NULL,
-        ${DatabaseConstants.colJar} TEXT NOT NULL,
-        ${DatabaseConstants.colAmount} REAL NOT NULL,
-        ${DatabaseConstants.colDate} TEXT NOT NULL,
-        ${DatabaseConstants.colNote} TEXT
-      )
-    ''');
+    CREATE TABLE ${DatabaseConstants.monthlyBudgetTable} (
+      ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+      ${DatabaseConstants.colMonth} TEXT NOT NULL UNIQUE,
+      ${DatabaseConstants.colTotalBudget} REAL NOT NULL
+    )
+  ''');
 
     await db.execute('''
-      CREATE TABLE ${DatabaseConstants.monthlyBudgetTable} (
-        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
-        ${DatabaseConstants.colMonth} TEXT NOT NULL,
-        ${DatabaseConstants.colTotalBudget} REAL NOT NULL
-      )
-    ''');
+    CREATE TABLE ${DatabaseConstants.jarAllocationsTable} (
+      ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+      ${DatabaseConstants.colMonth} TEXT NOT NULL,
+      ${DatabaseConstants.colJarName} TEXT NOT NULL,
+      ${DatabaseConstants.colAllocatedAmount} REAL NOT NULL,
+      UNIQUE(${DatabaseConstants.colMonth}, ${DatabaseConstants.colJarName})
+    )
+  ''');
+
+    await db.execute('''
+    CREATE TABLE ${DatabaseConstants.transactionsTable} (
+      ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+      ${DatabaseConstants.colType} TEXT NOT NULL,
+      ${DatabaseConstants.colJar} TEXT NOT NULL,
+      ${DatabaseConstants.colAmount} REAL NOT NULL,
+      ${DatabaseConstants.colDate} TEXT NOT NULL,
+      ${DatabaseConstants.colNote} TEXT
+    )
+  ''');
   }
 }

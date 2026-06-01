@@ -13,60 +13,68 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final budget = ref.watch(budgetProvider);
+    final budgetAsync = ref.watch(budgetProvider);
     final jarSummariesAsync = ref.watch(jarSummariesProvider);
 
-    final totalBudget = budget.totalBudget;
-    double totalSpent = 0;
-    final Map<String, double> jarSpent = {};
+    return budgetAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error: $err')),
+      data: (budgetPlan) {
+        // Compute total spent per jar and overall
+        double totalSpent = 0;
+        Map<String, double> jarSpent = {};
 
-    jarSummariesAsync.whenData((summaries) {
-      for (final entry in summaries.entries) {
-        if (entry.key == '__total_income__') continue;
-        jarSpent[entry.key] = entry.value;
-        totalSpent += entry.value;
-      }
-    });
+        jarSummariesAsync.whenData((summaries) {
+          for (final entry in summaries.entries) {
+            if (entry.key == '__total_income__') continue;
+            jarSpent[entry.key] = entry.value;
+            totalSpent += entry.value;
+          }
+        });
 
-    double leftAmount = totalBudget - totalSpent;
-    if (leftAmount < 0) leftAmount = 0;
+        double leftAmount = budgetPlan.totalBudget - totalSpent;
+        if (leftAmount < 0) leftAmount = 0;
 
-    // Days left in the current month (including today)
-    final now = DateTime.now();
-    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
-    final daysLeft = lastDayOfMonth.difference(now).inDays + 1; // today counts
+        final now = DateTime.now();
+        final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+        final daysLeft = lastDayOfMonth.difference(now).inDays + 1;
+        final double dailyAllowance =
+            daysLeft > 0 ? leftAmount / daysLeft : leftAmount;
 
-    final double dailyAllowance =
-        daysLeft > 0 ? leftAmount / daysLeft : leftAmount;
-
-    return Column(
-      children: [
-        const HomeHeader(),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                HealthRingWidget(
-                  leftAmount: leftAmount,
-                  totalBudget: totalBudget,
+        return Column(
+          children: [
+            const HomeHeader(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    HealthRingWidget(
+                      leftAmount: leftAmount,
+                      totalBudget: budgetPlan.totalBudget,
+                    ),
+                    const SizedBox(height: 16),
+                    DailyAllowanceCard(
+                      dailyAllowance: dailyAllowance,
+                      daysLeft: daysLeft,
+                    ),
+                    const SizedBox(height: 16),
+                    JarRowWidget(
+                      allocations: budgetPlan.allocations,
+                      jarSpent: jarSpent,
+                    ),
+                    const SizedBox(height: 24),
+                    const FocusCardWidget(),
+                    const SizedBox(height: 100),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                DailyAllowanceCard(
-                  dailyAllowance: dailyAllowance,
-                  daysLeft: daysLeft,
-                ),
-                const SizedBox(height: 16),
-                JarRowWidget(jarSpent: jarSpent),
-                const SizedBox(height: 24),
-                const FocusCardWidget(),
-                const SizedBox(height: 100),
-              ],
+              ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }
