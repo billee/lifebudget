@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'honeycomb_background.dart';
+import '../../../core/constants/app_colors.dart'; // ← Add this import
 
 class LifeBudgetScaffold extends StatelessWidget {
   final Widget body;
@@ -24,13 +24,20 @@ class LifeBudgetScaffold extends StatelessWidget {
       appBar: appBar,
       body: Stack(
         children: [
-          // RepaintBoundary caches the honeycomb bitmap – big performance boost
-          // const Positioned.fill(
-          //   child: RepaintBoundary(
-          //     child: HoneycombBackground(),
-          //   ),
-          // ),
-          // Actual content on top
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFFF7F4EE),
+                    AppColors.surface,
+                  ],
+                ),
+              ),
+            ),
+          ),
           body,
         ],
       ),

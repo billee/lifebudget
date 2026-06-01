@@ -25,5 +25,5 @@ class AppColors {
 
   // Misc
   static const ringBackground = Color(0xFFE8E8E8);
-  static const cardBackground = Color(0xFFF5F2EB);
+  static const cardBackground = Color(0xFFEFEBE0);
 }

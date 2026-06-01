@@ -13,25 +13,27 @@ class HomeHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0EBE1), // background colour here
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.grey.shade300,
-            width: 0.5,
+        color: AppColors.primary,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
-        ),
+        ],
       ),
       child: SafeArea(
         bottom: false,
         child: Row(
           children: [
+            // Avatar with white background for contrast
             CircleAvatar(
               radius: 20,
-              backgroundColor: AppColors.primary,
+              backgroundColor: Colors.white,
               child: const Text(
                 'M',
-                style:
-                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    color: AppColors.primary, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(width: 12),
@@ -40,20 +42,21 @@ class HomeHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
+                  const Text(
                     'Good morning, Maria',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     statusLine,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white70,
+                    ),
                   ),
                 ],
               ),
@@ -61,7 +64,7 @@ class HomeHeader extends StatelessWidget {
             IconButton(
               icon: const Icon(
                 Icons.notifications_none_rounded,
-                color: AppColors.textSecondary,
+                color: Colors.white70,
               ),
               onPressed: () {},
             ),
