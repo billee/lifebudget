@@ -2,75 +2,44 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../widgets/common/lifebudget_scaffold.dart'; // ← moved to top
 import 'fab_speed_dial.dart';
-import '../../widgets/common/lifebudget_scaffold.dart';
 
 class HomeShell extends StatefulWidget {
-  final Widget child;
-  const HomeShell({super.key, required this.child});
+  final StatefulNavigationShell navigationShell;
+  const HomeShell({super.key, required this.navigationShell});
 
   @override
   State<HomeShell> createState() => _HomeShellState();
 }
 
 class _HomeShellState extends State<HomeShell> {
-  // Initial distance from bottom (in logical pixels)
   double _fabBottomOffset = 90.0;
-
-  // Clamp limits to keep FAB from going off-screen or behind nav bar
   static const double _minOffset = 70.0;
   static const double _maxOffset = 250.0;
 
-  int _currentIndex(BuildContext context) {
-    final location = GoRouterState.of(context).uri.toString();
-    if (location.startsWith('/budget')) return 1;
-    if (location.startsWith('/journal')) return 2;
-    if (location.startsWith('/goals')) return 3;
-    if (location.startsWith('/profile')) return 4;
-    return 0;
-  }
-
-  void _onTap(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go('/');
-        break;
-      case 1:
-        context.go('/budget');
-        break;
-      case 2:
-        context.go('/journal');
-        break;
-      case 3:
-        context.go('/goals');
-        break;
-      case 4:
-        context.go('/profile');
-        break;
-    }
+  void _onTap(int index) {
+    widget.navigationShell.goBranch(
+      index,
+      initialLocation: index == widget.navigationShell.currentIndex,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = _currentIndex(context);
     return LifeBudgetScaffold(
       body: Stack(
         children: [
-          widget.child,
-          // Draggable FAB cluster
+          widget.navigationShell,
           Positioned(
             right: 20,
             bottom: _fabBottomOffset,
             child: GestureDetector(
-              // Handle vertical drag to reposition the whole FAB cluster
               onVerticalDragUpdate: (details) {
                 setState(() {
-                  // details.delta.dy is negative when dragging up
                   _fabBottomOffset -= details.delta.dy;
-                  _fabBottomOffset = _fabBottomOffset.clamp(
-                    _minOffset,
-                    _maxOffset,
-                  );
+                  _fabBottomOffset =
+                      _fabBottomOffset.clamp(_minOffset, _maxOffset);
                 });
               },
               child: const FabSpeedDial(),
@@ -80,7 +49,7 @@ class _HomeShellState extends State<HomeShell> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -90,29 +59,20 @@ class _HomeShellState extends State<HomeShell> {
           ],
         ),
         child: BottomNavigationBar(
-          currentIndex: currentIndex,
-          onTap: (index) => _onTap(context, index),
+          currentIndex: widget.navigationShell.currentIndex,
+          onTap: _onTap,
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home_rounded),
-              label: AppStrings.navHome,
-            ),
+                icon: Icon(Icons.home_rounded), label: AppStrings.navHome),
             BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_wallet_rounded),
-              label: AppStrings.navBudget,
-            ),
+                icon: Icon(Icons.account_balance_wallet_rounded),
+                label: AppStrings.navBudget),
             BottomNavigationBarItem(
-              icon: Icon(Icons.book_rounded),
-              label: AppStrings.navJournal,
-            ),
+                icon: Icon(Icons.book_rounded), label: AppStrings.navJournal),
             BottomNavigationBarItem(
-              icon: Icon(Icons.flag_rounded),
-              label: AppStrings.navGoals,
-            ),
+                icon: Icon(Icons.flag_rounded), label: AppStrings.navGoals),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person_rounded),
-              label: AppStrings.navProfile,
-            ),
+                icon: Icon(Icons.person_rounded), label: AppStrings.navProfile),
           ],
         ),
       ),

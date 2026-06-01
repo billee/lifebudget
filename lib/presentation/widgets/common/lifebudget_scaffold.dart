@@ -24,10 +24,12 @@ class LifeBudgetScaffold extends StatelessWidget {
       appBar: appBar,
       body: Stack(
         children: [
-          // Honeycomb always fills the background
-          const Positioned.fill(
-            child: HoneycombBackground(),
-          ),
+          // RepaintBoundary caches the honeycomb bitmap – big performance boost
+          // const Positioned.fill(
+          //   child: RepaintBoundary(
+          //     child: HoneycombBackground(),
+          //   ),
+          // ),
           // Actual content on top
           body,
         ],
