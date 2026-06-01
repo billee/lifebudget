@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/emotional_tone_helper.dart';
+import 'package:go_router/go_router.dart';
+import '../../screens/jars/jar_detail_screen.dart';
 
 class JarCardWidget extends StatelessWidget {
   final IconData icon;
@@ -23,7 +25,11 @@ class JarCardWidget extends StatelessWidget {
     final double usedPercent = (total - remaining) / total;
     final String status = getJarStatusLabel(usedPercent);
     return GestureDetector(
-      onTap: () {},
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => JarDetailScreen(jarName: name)),
+        );
+      },
       child: Container(
         width: 140,
         padding: const EdgeInsets.all(12),

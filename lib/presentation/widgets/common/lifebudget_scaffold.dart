@@ -31,8 +31,8 @@ class LifeBudgetScaffold extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Color(0xFFF7F4EE),
-                    AppColors.surface,
+                    const Color(0xFFFFFFFF), // very pale off‑white
+                    const Color(0xFFFFFFF8),
                   ],
                 ),
               ),

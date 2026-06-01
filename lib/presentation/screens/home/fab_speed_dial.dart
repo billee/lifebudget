@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_strings.dart';
+import 'package:go_router/go_router.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_strings.dart';
+import '../../screens/transactions/log_expense_screen.dart';
+import '../../screens/transactions/log_income_screen.dart';
 
 class FabSpeedDial extends StatefulWidget {
   const FabSpeedDial({super.key});
@@ -50,20 +53,36 @@ class _FabSpeedDialState extends State<FabSpeedDial>
         if (_expanded) ...[
           _MiniFAB(
             icon: Icons.camera_alt_outlined,
-            label: AppStrings.scanReceipt,
-            onTap: () {},
+            label: 'Scan receipt',
+            onTap: () {
+              _toggle();
+              // Placeholder: show coming soon snackbar
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Scan receipt coming soon!')),
+              );
+            },
           ),
           const SizedBox(height: 8),
           _MiniFAB(
             icon: Icons.edit_note_rounded,
-            label: AppStrings.logExpense,
-            onTap: () {},
+            label: 'Log expense',
+            onTap: () {
+              _toggle(); // collapse first
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const LogExpenseScreen()),
+              );
+            },
           ),
           const SizedBox(height: 8),
           _MiniFAB(
             icon: Icons.add_rounded,
-            label: AppStrings.addIncome,
-            onTap: () {},
+            label: 'Add income',
+            onTap: () {
+              _toggle();
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const LogIncomeScreen()),
+              );
+            },
           ),
           const SizedBox(height: 16),
         ],

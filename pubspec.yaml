@@ -10,6 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
 
+  font_awesome_flutter: ^10.7.0
+  
   # State Management
   flutter_riverpod: ^2.5.1
 

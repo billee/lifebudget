@@ -3,7 +3,10 @@ import 'package:percent_indicator/circular_percent_indicator.dart';
 import '../../../core/constants/app_colors.dart';
 
 class HealthRingWidget extends StatelessWidget {
-  const HealthRingWidget({super.key});
+  final double leftAmount;
+  final double totalBudget;
+  const HealthRingWidget(
+      {super.key, required this.leftAmount, required this.totalBudget});
 
   @override
   Widget build(BuildContext context) {

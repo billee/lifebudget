@@ -6,6 +6,9 @@ import '../screens/budget/budget_screen.dart';
 import '../screens/journal/journal_screen.dart';
 import '../screens/goals/goals_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../screens/transactions/log_expense_screen.dart';
+import '../screens/transactions/log_income_screen.dart';
+import '../screens/jars/jar_detail_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -19,39 +22,54 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/',
               builder: (context, state) => const HomeScreen(),
+              routes: [
+                // Nested routes for home branch (full-screen dialogs)
+                GoRoute(
+                  path: 'log-expense',
+                  builder: (context, state) => const LogExpenseScreen(),
+                ),
+                GoRoute(
+                  path: 'log-income',
+                  builder: (context, state) => const LogIncomeScreen(),
+                ),
+                GoRoute(
+                  path: 'jar/:jarName',
+                  builder: (context, state) {
+                    final jarName = state.pathParameters['jarName']!;
+                    return JarDetailScreen(jarName: jarName);
+                  },
+                ),
+              ],
             ),
+          ],
+        ),
+        // ... other branches unchanged
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+                path: '/budget',
+                builder: (context, state) => const BudgetScreen()),
           ],
         ),
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/budget',
-              builder: (context, state) => const BudgetScreen(),
-            ),
+                path: '/journal',
+                builder: (context, state) => const JournalScreen()),
           ],
         ),
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/journal',
-              builder: (context, state) => const JournalScreen(),
-            ),
+                path: '/goals',
+                builder: (context, state) => const GoalsScreen()),
           ],
         ),
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/goals',
-              builder: (context, state) => const GoalsScreen(),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: '/profile',
-              builder: (context, state) => const ProfileScreen(),
-            ),
+                path: '/profile',
+                builder: (context, state) => const ProfileScreen()),
           ],
         ),
       ],

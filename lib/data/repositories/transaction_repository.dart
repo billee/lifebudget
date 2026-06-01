@@ -1,0 +1,63 @@
+import '../database/database_helper.dart';
+import '../database/database_constants.dart';
+import '../models/transaction_model.dart';
+import 'package:sqflite/sqflite.dart';
+
+class TransactionRepository {
+  final DatabaseHelper _dbHelper = DatabaseHelper.instance;
+
+  // Insert a transaction
+  Future<int> insertTransaction(TransactionModel transaction) async {
+    final db = await _dbHelper.database;
+    return await db.insert(
+      DatabaseConstants.transactionsTable,
+      transaction.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // Get all transactions for a specific jar (for jar detail screen)
+  Future<List<TransactionModel>> getTransactionsByJar(String jar) async {
+    final db = await _dbHelper.database;
+    final maps = await db.query(
+      DatabaseConstants.transactionsTable,
+      where: '${DatabaseConstants.colJar} = ?',
+      whereArgs: [jar],
+      orderBy: '${DatabaseConstants.colDate} DESC',
+    );
+    return maps.map((map) => TransactionModel.fromMap(map)).toList();
+  }
+
+  // N+1‑free summary: returns total spent per jar and total income
+  Future<Map<String, double>> getJarSummaries() async {
+    final db = await _dbHelper.database;
+    // One query to get sum of expenses per jar
+    final expenseResult = await db.rawQuery('''
+      SELECT ${DatabaseConstants.colJar}, SUM(${DatabaseConstants.colAmount}) as total
+      FROM ${DatabaseConstants.transactionsTable}
+      WHERE ${DatabaseConstants.colType} = 'expense'
+      GROUP BY ${DatabaseConstants.colJar}
+    ''');
+
+    // One query to get total income
+    final incomeResult = await db.rawQuery('''
+      SELECT SUM(${DatabaseConstants.colAmount}) as total
+      FROM ${DatabaseConstants.transactionsTable}
+      WHERE ${DatabaseConstants.colType} = 'income'
+    ''');
+
+    final Map<String, double> summaries = {};
+    for (final row in expenseResult) {
+      final jar = row[DatabaseConstants.colJar] as String;
+      final total = (row['total'] as num?)?.toDouble() ?? 0.0;
+      summaries[jar] = total;
+    }
+
+    // total income stored under a special key
+    final totalIncome =
+        (incomeResult.first['total'] as num?)?.toDouble() ?? 0.0;
+    summaries['__total_income__'] = totalIncome;
+
+    return summaries;
+  }
+}

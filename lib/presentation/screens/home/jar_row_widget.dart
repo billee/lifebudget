@@ -1,20 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'jar_card_widget.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_strings.dart';
 
 class JarRowWidget extends StatelessWidget {
-  const JarRowWidget({super.key});
+  final Map<String, double> jarSpent;
+  const JarRowWidget({super.key, required this.jarSpent});
 
-  final jars = const [
-    _JarData(AppStrings.jarFood, AppColors.food, 1200, 800, Icons.restaurant),
-    _JarData(AppStrings.jarRent, AppColors.rent, 5000, 0, Icons.home),
-    _JarData(AppStrings.jarTransport, AppColors.transport, 800, 200,
-        Icons.directions_bus),
-    _JarData(AppStrings.jarFun, AppColors.fun, 500, 300, Icons.celebration),
-    _JarData(
-        AppStrings.jarHealth, AppColors.health, 300, 100, Icons.local_hospital),
-  ];
+  static const _jarBudgets = {
+    'food': 1200.0,
+    'rent': 5000.0,
+    'transport': 800.0,
+    'fun': 500.0,
+    'health': 300.0,
+  };
+
+  final _jarMeta = const {
+    'food': _JarMeta(AppColors.food, FontAwesomeIcons.utensils),
+    'rent': _JarMeta(AppColors.rent, FontAwesomeIcons.house),
+    'transport': _JarMeta(AppColors.transport, FontAwesomeIcons.bus),
+    'fun': _JarMeta(AppColors.fun, FontAwesomeIcons.faceSmile),
+    'health': _JarMeta(AppColors.health, FontAwesomeIcons.hospital),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -22,16 +29,20 @@ class JarRowWidget extends StatelessWidget {
       height: 110,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: jars.length,
+        itemCount: _jarBudgets.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
-          final jar = jars[index];
+          final jarName = _jarBudgets.keys.elementAt(index);
+          final total = _jarBudgets[jarName]!;
+          final spent = jarSpent[jarName] ?? 0.0;
+          final remaining = total - spent;
+          final meta = _jarMeta[jarName]!;
           return JarCardWidget(
-            icon: jar.icon,
-            name: jar.name,
-            remaining: jar.remaining,
-            total: jar.remaining + jar.used,
-            color: jar.color,
+            icon: meta.icon,
+            name: jarName[0].toUpperCase() + jarName.substring(1),
+            remaining: remaining < 0 ? 0 : remaining,
+            total: total,
+            color: meta.color,
           );
         },
       ),
@@ -39,12 +50,8 @@ class JarRowWidget extends StatelessWidget {
   }
 }
 
-class _JarData {
-  final String name;
+class _JarMeta {
   final Color color;
-  final double remaining;
-  final double used;
   final IconData icon;
-
-  const _JarData(this.name, this.color, this.remaining, this.used, this.icon);
+  const _JarMeta(this.color, this.icon);
 }
