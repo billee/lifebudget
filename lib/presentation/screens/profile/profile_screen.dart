@@ -15,34 +15,32 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  final Map<String, double> _percentages = {
-    'rent': 30,
-    'food': 25,
-    'transport': 10,
-    'health': 5,
-    'fun': 10,
-    'savings': 20,
+  final Map<String, double> _allocated = {
+    'rent': 0,
+    'food': 0,
+    'transport': 0,
+    'health': 0,
+    'fun': 0,
+    'savings': 0,
   };
 
-  @override
-  void initState() {
-    super.initState();
-    // Load current percentages from the DB (we'll do it inside build to be reactive)
-  }
+  double _totalIncome = 0;
 
-  void _updatePercentages(List<JarAllocation> allocations) {
-    for (final alloc in allocations) {
-      _percentages[alloc.jarName] = alloc.percentage;
+  void _syncFromAllocations(List<JarAllocation> allocs, double totalIncome) {
+    for (final alloc in allocs) {
+      if (_allocated.containsKey(alloc.jarName)) {
+        _allocated[alloc.jarName] = totalIncome * (alloc.percentage / 100);
+      }
     }
   }
 
-  double get _totalPercentage =>
-      _percentages.values.fold(0, (sum, p) => sum + p);
+  double get _totalAllocated => _allocated.values.fold(0, (sum, v) => sum + v);
+  bool get _isOverBudget => _totalAllocated > _totalIncome && _totalIncome > 0;
 
   Future<void> _save() async {
-    if (_totalPercentage != 100.0) {
+    if (_totalIncome <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Percentages must add up to 100%!')),
+        const SnackBar(content: Text('Add some income first!')),
       );
       return;
     }
@@ -50,13 +48,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final month =
         '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
     final repo = ref.read(budgetRepositoryProvider);
-    final newAllocations = _percentages.entries.map((e) {
-      return JarAllocation(month: month, jarName: e.key, percentage: e.value);
+    final newAllocs = _allocated.entries.map((e) {
+      final percentage = (e.value / _totalIncome) * 100;
+      return JarAllocation(
+          month: month, jarName: e.key, percentage: percentage);
     }).toList();
 
-    await repo.saveJarAllocations(month, newAllocations);
-
-    // Invalidate providers to refresh UI
+    await repo.saveJarAllocations(month, newAllocs);
     ref.invalidate(jarAllocationsProvider);
     ref.invalidate(jarSummariesProvider);
 
@@ -75,11 +73,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final allocationsAsync = ref.watch(jarAllocationsProvider);
     final summariesAsync = ref.watch(jarSummariesProvider);
 
-    // Update local percentages when allocations load
-    allocationsAsync.whenData((allocs) => _updatePercentages(allocs));
+    _totalIncome = summariesAsync.valueOrNull?['__total_income__'] ?? 0;
 
-    // Total income for display
-    final totalIncome = summariesAsync.valueOrNull?['__total_income__'] ?? 0.0;
+    // Sync once when allocations load (but only if we haven't manually adjusted)
+    allocationsAsync.whenData((allocs) {
+      // Only sync if the user hasn't made changes yet (all zeros)
+      bool allZero = _allocated.values.every((v) => v == 0);
+      if (allZero) {
+        _syncFromAllocations(allocs, _totalIncome);
+      }
+    });
+
+    final double sliderMax = _totalIncome > 0 ? _totalIncome : 1000.0;
+    final int divisions = ((sliderMax / 100).ceil()).clamp(1, 1000);
 
     return LifeBudgetScaffold(
       appBar: AppBar(
@@ -94,7 +100,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Income received this month
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -113,7 +118,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 style: TextStyle(
                                     fontSize: 14,
                                     color: AppColors.textSecondary)),
-                            Text('₱ ${totalIncome.toStringAsFixed(0)}',
+                            Text('₱ ${_totalIncome.toStringAsFixed(0)}',
                                 style: const TextStyle(
                                     fontSize: 24, fontWeight: FontWeight.bold)),
                           ],
@@ -123,53 +128,98 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Jar percentage sliders
-                  const Text('Jar Percentages (must add up to 100%)',
+                  const Text('How would you like to split your income?',
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  ..._percentages.entries.map((entry) {
+                  const SizedBox(height: 8),
+
+                  // Jar sliders
+                  ..._allocated.entries.map((entry) {
+                    final jarName = entry.key;
+                    final amount = entry.value;
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.only(bottom: 8),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            '${entry.key[0].toUpperCase()}${entry.key.substring(1)} — ${entry.value.toStringAsFixed(0)}%',
-                            style: const TextStyle(fontSize: 14),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                jarName[0].toUpperCase() + jarName.substring(1),
+                                style: const TextStyle(
+                                    fontSize: 14, fontWeight: FontWeight.w500),
+                              ),
+                              Text(
+                                '₱${amount.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                           Slider(
-                            value: entry.value,
+                            value: amount.clamp(0, sliderMax),
                             min: 0,
-                            max: 100,
-                            divisions: 100,
-                            label: '${entry.value.toStringAsFixed(0)}%',
+                            max: sliderMax,
+                            divisions: divisions,
+                            label: '₱${amount.toStringAsFixed(0)}',
                             activeColor: AppColors.primary,
                             onChanged: (newValue) {
                               setState(() {
-                                _percentages[entry.key] = newValue;
+                                _allocated[jarName] = newValue;
                               });
                             },
                           ),
+                          const SizedBox(height: 4),
                         ],
                       ),
                     );
                   }),
 
-                  // Total percentage display
-                  Text(
-                    'Total: ${_totalPercentage.toStringAsFixed(0)}%',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: _totalPercentage == 100
-                          ? AppColors.onTrack
-                          : AppColors.critical,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
 
-                  // Save button
+                  // Total and warning
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Total allocated: ₱${_totalAllocated.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      if (_isOverBudget)
+                        const Icon(Icons.warning_amber_rounded,
+                            color: AppColors.warning),
+                    ],
+                  ),
+                  if (_isOverBudget)
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline,
+                              size: 20, color: AppColors.warning),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              "You're allocating more than your income. That's okay if you have savings, but double-check.",
+                              style: TextStyle(
+                                  color: AppColors.warning, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
