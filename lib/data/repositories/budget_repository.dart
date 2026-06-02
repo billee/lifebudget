@@ -5,79 +5,54 @@ import '../models/budget_plan_model.dart';
 class BudgetRepository {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
-  Future<BudgetPlan> getOrCreateBudget(String month) async {
+  /// Returns the jar percentage allocations for a specific month.
+  /// If none exist, creates a default set (including a Savings jar) and returns it.
+  Future<List<JarAllocation>> getJarAllocations(String month) async {
     final db = await _dbHelper.database;
 
-    var budgetMaps = await db.query(
-      DatabaseConstants.monthlyBudgetTable,
+    var maps = await db.query(
+      DatabaseConstants.jarAllocationsTable,
       where: '${DatabaseConstants.colMonth} = ?',
       whereArgs: [month],
     );
 
-    BudgetPlan plan;
-
-    if (budgetMaps.isEmpty) {
-      // insert default
-      final defaultPlan = BudgetPlan(
-        month: month,
-        totalBudget: 18000,
-        allocations: _defaultAllocations(month),
-      );
-      final budgetId = await db.insert(
-        DatabaseConstants.monthlyBudgetTable,
-        defaultPlan.toMap(),
-      );
-      for (final alloc in defaultPlan.allocations) {
-        await db.insert(
-          DatabaseConstants.jarAllocationsTable,
-          alloc.toMap(),
-        );
+    if (maps.isEmpty) {
+      // No allocation yet for this month – create default percentages
+      final defaults = _defaultAllocations(month);
+      for (final alloc in defaults) {
+        await db.insert(DatabaseConstants.jarAllocationsTable, alloc.toMap());
       }
-      plan = defaultPlan.copyWith(id: budgetId);
-    } else {
-      final budgetMap = budgetMaps.first;
-      final allocMaps = await db.query(
-        DatabaseConstants.jarAllocationsTable,
-        where: '${DatabaseConstants.colMonth} = ?',
-        whereArgs: [month],
-      );
-      final allocations =
-          allocMaps.map((m) => JarAllocation.fromMap(m)).toList();
-      plan = BudgetPlan.fromMap(budgetMap, allocations: allocations);
+      return defaults;
     }
 
-    return plan;
+    return maps.map((m) => JarAllocation.fromMap(m)).toList();
   }
 
-  Future<void> updateBudget(BudgetPlan plan) async {
+  /// Saves (replaces) the jar percentage allocations for a given month.
+  Future<void> saveJarAllocations(
+      String month, List<JarAllocation> allocations) async {
     final db = await _dbHelper.database;
-    await db.update(
-      DatabaseConstants.monthlyBudgetTable,
-      plan.toMap(),
-      where: '${DatabaseConstants.colMonth} = ?',
-      whereArgs: [plan.month],
-    );
 
     await db.delete(
       DatabaseConstants.jarAllocationsTable,
       where: '${DatabaseConstants.colMonth} = ?',
-      whereArgs: [plan.month],
+      whereArgs: [month],
     );
-    for (final alloc in plan.allocations) {
-      await db.insert(
-        DatabaseConstants.jarAllocationsTable,
-        alloc.toMap(),
-      );
+
+    for (final alloc in allocations) {
+      await db.insert(DatabaseConstants.jarAllocationsTable, alloc.toMap());
     }
   }
 
   List<JarAllocation> _defaultAllocations(String month) {
+    // Default jars with percentages (must sum to 100)
     return [
-      JarAllocation(month: month, jarName: 'food', allocatedAmount: 4000),
-      JarAllocation(month: month, jarName: 'rent', allocatedAmount: 5000),
-      JarAllocation(month: month, jarName: 'transport', allocatedAmount: 1500),
-      JarAllocation(month: month, jarName: 'fun', allocatedAmount: 2000),
-      JarAllocation(month: month, jarName: 'health', allocatedAmount: 1500),
+      JarAllocation(month: month, jarName: 'rent', percentage: 30),
+      JarAllocation(month: month, jarName: 'food', percentage: 25),
+      JarAllocation(month: month, jarName: 'transport', percentage: 10),
+      JarAllocation(month: month, jarName: 'health', percentage: 5),
+      JarAllocation(month: month, jarName: 'fun', percentage: 10),
+      JarAllocation(month: month, jarName: 'savings', percentage: 20),
     ];
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../providers/transaction_provider.dart';
 import '../../../data/models/transaction_model.dart';
+import '../../providers/budget_provider.dart';
 
 class LogIncomeScreen extends ConsumerStatefulWidget {
   const LogIncomeScreen({super.key});

@@ -6,10 +6,10 @@ final budgetRepositoryProvider = Provider<BudgetRepository>((ref) {
   return BudgetRepository();
 });
 
-final budgetProvider = FutureProvider<BudgetPlan>((ref) async {
+final jarAllocationsProvider = FutureProvider<List<JarAllocation>>((ref) async {
   final repo = ref.watch(budgetRepositoryProvider);
-  final month = _currentMonth(); // e.g., '2026-06'
-  return await repo.getOrCreateBudget(month);
+  final month = _currentMonth();
+  return await repo.getJarAllocations(month);
 });
 
 String _currentMonth() {

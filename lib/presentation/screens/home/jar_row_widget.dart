@@ -2,25 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'jar_card_widget.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../data/models/budget_plan_model.dart';
+import '../../../data/models/budget_plan_model.dart'; // JarAllocation
 
 class JarRowWidget extends StatelessWidget {
   final List<JarAllocation> allocations;
-  final Map<String, double> jarSpent;
+  final Map<String, double> jarSpent; // jar name → total spent
+  final double totalIncome; // total income for the month
 
   const JarRowWidget({
     super.key,
     required this.allocations,
     required this.jarSpent,
+    required this.totalIncome,
   });
 
-  // Color and icon map
+  // Color and icon for each jar
   static const _jarMeta = {
-    'food': _JarMeta(AppColors.food, FontAwesomeIcons.utensils),
     'rent': _JarMeta(AppColors.rent, FontAwesomeIcons.house),
+    'food': _JarMeta(AppColors.food, FontAwesomeIcons.utensils),
     'transport': _JarMeta(AppColors.transport, FontAwesomeIcons.bus),
-    'fun': _JarMeta(AppColors.fun, FontAwesomeIcons.faceSmile),
     'health': _JarMeta(AppColors.health, FontAwesomeIcons.hospital),
+    'fun': _JarMeta(AppColors.fun, FontAwesomeIcons.faceSmile),
+    'savings': _JarMeta(AppColors.primary, FontAwesomeIcons.piggyBank),
   };
 
   @override
@@ -33,8 +36,9 @@ class JarRowWidget extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           final alloc = allocations[index];
+          final allocatedAmount = totalIncome * (alloc.percentage / 100);
           final spent = jarSpent[alloc.jarName] ?? 0.0;
-          final remaining = alloc.allocatedAmount - spent;
+          final remaining = allocatedAmount - spent;
           final meta = _jarMeta[alloc.jarName] ??
               _JarMeta(Colors.grey, FontAwesomeIcons.question);
 
@@ -42,7 +46,7 @@ class JarRowWidget extends StatelessWidget {
             icon: meta.icon,
             name: alloc.jarName[0].toUpperCase() + alloc.jarName.substring(1),
             remaining: remaining < 0 ? 0 : remaining,
-            total: alloc.allocatedAmount,
+            total: allocatedAmount,
             color: meta.color,
           );
         },

@@ -21,33 +21,37 @@ class DatabaseHelper {
   }
 
   Future<void> _createDB(Database db, int version) async {
+    // Create transactions table (unchanged)
     await db.execute('''
-    CREATE TABLE ${DatabaseConstants.monthlyBudgetTable} (
-      ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
-      ${DatabaseConstants.colMonth} TEXT NOT NULL UNIQUE,
-      ${DatabaseConstants.colTotalBudget} REAL NOT NULL
-    )
-  ''');
+      CREATE TABLE ${DatabaseConstants.transactionsTable} (
+        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DatabaseConstants.colType} TEXT NOT NULL,
+        ${DatabaseConstants.colJar} TEXT NOT NULL,
+        ${DatabaseConstants.colAmount} REAL NOT NULL,
+        ${DatabaseConstants.colDate} TEXT NOT NULL,
+        ${DatabaseConstants.colNote} TEXT
+      )
+    ''');
 
+    // Create jar_allocations table with percentage
     await db.execute('''
-    CREATE TABLE ${DatabaseConstants.jarAllocationsTable} (
-      ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
-      ${DatabaseConstants.colMonth} TEXT NOT NULL,
-      ${DatabaseConstants.colJarName} TEXT NOT NULL,
-      ${DatabaseConstants.colAllocatedAmount} REAL NOT NULL,
-      UNIQUE(${DatabaseConstants.colMonth}, ${DatabaseConstants.colJarName})
-    )
-  ''');
+      CREATE TABLE ${DatabaseConstants.jarAllocationsTable} (
+        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DatabaseConstants.colMonth} TEXT NOT NULL,
+        ${DatabaseConstants.colJarName} TEXT NOT NULL,
+        ${DatabaseConstants.colPercentage} REAL NOT NULL,
+        UNIQUE(${DatabaseConstants.colMonth}, ${DatabaseConstants.colJarName})
+      )
+    ''');
+  }
 
-    await db.execute('''
-    CREATE TABLE ${DatabaseConstants.transactionsTable} (
-      ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
-      ${DatabaseConstants.colType} TEXT NOT NULL,
-      ${DatabaseConstants.colJar} TEXT NOT NULL,
-      ${DatabaseConstants.colAmount} REAL NOT NULL,
-      ${DatabaseConstants.colDate} TEXT NOT NULL,
-      ${DatabaseConstants.colNote} TEXT
-    )
-  ''');
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute(
+          'DROP TABLE IF EXISTS ${DatabaseConstants.jarAllocationsTable}');
+      await db.execute(
+          'DROP TABLE IF EXISTS budget_plans'); // remove old table if it exists
+      await _createDB(db, newVersion);
+    }
   }
 }
