@@ -6,8 +6,8 @@ import '../../../data/models/expected_expense_model.dart';
 
 class JarRowWidget extends StatelessWidget {
   final List<ExpectedExpense> expectedExpenses;
-  final Map<String, double> jarSpent; // unused for now
-  final double totalIncome; // unused for now
+  final Map<String, double> jarSpent; // jar name → total spent this month
+  final double totalIncome;
 
   const JarRowWidget({
     super.key,
@@ -18,27 +18,53 @@ class JarRowWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Sort by amount descending
+    final now = DateTime.now();
+    final firstDay = DateTime(now.year, now.month, 1);
+    final daysElapsed = now.difference(firstDay).inDays + 1;
+
+    // Lowercase map for case‑insensitive matching
+    final spentLower = Map<String, double>.fromIterables(
+      jarSpent.keys.map((k) => k.toLowerCase()),
+      jarSpent.values,
+    );
+
     final sorted = List<ExpectedExpense>.from(expectedExpenses)
       ..sort((a, b) => b.amount.compareTo(a.amount));
 
     return SizedBox(
-      height: 150, // a bit taller to accommodate new layout
+      height: 150,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: sorted.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           final exp = sorted[index];
-          final color = _colorForTitle(exp.title); // optional color coding
+          final lowerTitle = exp.title.toLowerCase();
+          final totalSpent = spentLower[lowerTitle] ?? 0.0;
+
+          double? actual;
+          if (totalSpent > 0) {
+            switch (exp.frequency) {
+              case 'daily':
+                actual = totalSpent / daysElapsed;
+                break;
+              case 'weekly':
+                final weeksElapsed = (daysElapsed / 7).ceil();
+                actual = totalSpent / weeksElapsed;
+                break;
+              case 'monthly':
+                actual = totalSpent;
+                break;
+            }
+          }
 
           return JarCardWidget(
             icon: _iconForFrequency(exp.frequency),
             name: exp.title,
-            amount: exp.amount,
+            plannedAmount: exp.amount,
             frequency: exp.frequency,
-            isEstimated: true,
-            color: color,
+            actualAmount: actual,
+            color: _colorForTitle(exp.title),
           );
         },
       ),
@@ -59,7 +85,6 @@ class JarRowWidget extends StatelessWidget {
   }
 
   Color _colorForTitle(String title) {
-    // Simple color assignment based on common keywords
     final lower = title.toLowerCase();
     if (lower.contains('rent')) return AppColors.rent;
     if (lower.contains('food') || lower.contains('grocer'))

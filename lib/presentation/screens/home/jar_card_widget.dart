@@ -4,27 +4,29 @@ import '../../../core/constants/app_colors.dart';
 class JarCardWidget extends StatelessWidget {
   final IconData icon;
   final String name;
-  final double amount;
+  final double plannedAmount;
   final String frequency; // 'daily', 'weekly', 'monthly'
-  final bool isEstimated; // true for planned expenses
+  final double? actualAmount; // null if no actual spending yet
   final Color color;
 
   const JarCardWidget({
     super.key,
     required this.icon,
     required this.name,
-    required this.amount,
+    required this.plannedAmount,
     required this.frequency,
-    this.isEstimated = true,
+    this.actualAmount,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    final frequencyLabel = frequency[0].toUpperCase() + frequency.substring(1);
-    final statusText = isEstimated ? 'Planned' : 'Actual avg';
+    final displayedAmount = actualAmount ?? plannedAmount;
+    final statusText = actualAmount != null ? 'Actual' : 'Planned';
     final statusColor =
-        isEstimated ? AppColors.textSecondary : AppColors.primary;
+        actualAmount != null ? AppColors.primary : AppColors.textSecondary;
+
+    final frequencyLabel = frequency[0].toUpperCase() + frequency.substring(1);
 
     return GestureDetector(
       onTap: () {},
@@ -57,7 +59,7 @@ class JarCardWidget extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '₱${amount.toStringAsFixed(0)}',
+              '₱${displayedAmount.toStringAsFixed(0)}',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -86,7 +88,8 @@ class JarCardWidget extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 color: statusColor,
-                fontStyle: isEstimated ? FontStyle.italic : FontStyle.normal,
+                fontWeight:
+                    actualAmount != null ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
           ],
