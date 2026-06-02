@@ -7,8 +7,9 @@ String getStatusLine(double percentageUsed) {
 }
 
 String getJarStatusLabel(double percentageUsed) {
-  if (percentageUsed <= 0.5) return AppStrings.jarOK;
-  if (percentageUsed <= 0.75) return AppStrings.jarCovered;
-  if (percentageUsed <= 0.9) return AppStrings.jarWatch;
-  return AppStrings.jarLow;
+  if (percentageUsed >= 1.0) return 'Covered';
+  if (percentageUsed > 0.9) return 'Low';
+  if (percentageUsed > 0.75) return 'Watch this';
+  if (percentageUsed > 0.5) return 'OK';
+  return 'Good';
 }

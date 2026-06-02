@@ -27,12 +27,24 @@ class JarRowWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Sort allocations by computed peso amount (descending)
+    // Sort jars: non-zero remaining first (by remaining desc), then zero remaining
     final sortedAllocs = List<JarAllocation>.from(allocations)
       ..sort((a, b) {
         final aAmount = totalIncome * (a.percentage / 100);
         final bAmount = totalIncome * (b.percentage / 100);
-        return bAmount.compareTo(aAmount);
+        final aSpent = jarSpent[a.jarName] ?? 0.0;
+        final bSpent = jarSpent[b.jarName] ?? 0.0;
+        final aRemaining = aAmount - aSpent;
+        final bRemaining = bAmount - bSpent;
+
+        // Zero remaining goes to the end
+        if (aRemaining <= 0 && bRemaining > 0) return 1;
+        if (bRemaining <= 0 && aRemaining > 0) return -1;
+        // Both non-zero: sort by remaining descending
+        if (aRemaining > 0 && bRemaining > 0)
+          return bRemaining.compareTo(aRemaining);
+        // Both zero: keep original order (or sort by allocated amount)
+        return 0;
       });
 
     return SizedBox(
