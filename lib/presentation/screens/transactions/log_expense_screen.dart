@@ -44,7 +44,7 @@ class _LogExpenseScreenState extends ConsumerState<LogExpenseScreen> {
 
     final transaction = TransactionModel(
       type: 'expense',
-      jar: _selectedJar!,
+      jar: _selectedJar!.toLowerCase(), // always save in lowercase
       amount: amount,
       date: DateTime.now(),
       note: _noteController.text.trim().isEmpty

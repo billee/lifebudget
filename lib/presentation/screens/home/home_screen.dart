@@ -5,7 +5,7 @@ import 'jar_row_widget.dart';
 import 'focus_card_widget.dart';
 import 'home_header.dart';
 import 'daily_allowance_card.dart';
-import '../../providers/transaction_provider.dart'; // jarSummariesProvider
+import '../../providers/transaction_provider.dart'; // allTransactionsProvider
 import '../../providers/expected_expenses_provider.dart'; // expectedExpensesProvider
 
 class HomeScreen extends ConsumerWidget {
@@ -14,13 +14,14 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final expensesAsync = ref.watch(expectedExpensesProvider);
-    final summariesAsync = ref.watch(jarSummariesProvider);
+    final allTxnsAsync =
+        ref.watch(allTransactionsProvider); // <— now using all transactions
 
-    if (expensesAsync.isLoading || summariesAsync.isLoading) {
+    if (expensesAsync.isLoading || allTxnsAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (expensesAsync.hasError || summariesAsync.hasError) {
+    if (expensesAsync.hasError || allTxnsAsync.hasError) {
       return const Center(
         child: Text('Something went wrong. Please restart the app.',
             style: TextStyle(fontSize: 16)),
@@ -28,28 +29,32 @@ class HomeScreen extends ConsumerWidget {
     }
 
     final expectedExpenses = expensesAsync.value!;
-    final summaries = summariesAsync.value!;
+    final transactions = allTxnsAsync.value!;
 
-    // Total income
-    final totalIncome = summaries['__total_income__'] ?? 0.0;
-
-    // Total spent
+    // Compute totals from transactions
+    double totalIncome = 0;
     double totalSpent = 0;
-    for (final entry in summaries.entries) {
-      if (entry.key == '__total_income__') continue;
-      totalSpent += entry.value;
+    final Map<String, double> jarSpent = {};
+
+    for (final t in transactions) {
+      if (t.type == 'income') {
+        totalIncome += t.amount;
+      } else {
+        totalSpent += t.amount;
+        final jar = t.jar.toLowerCase();
+        jarSpent[jar] = (jarSpent[jar] ?? 0) + t.amount;
+      }
     }
 
-    // Left to use (actual)
     double leftAmount = totalIncome - totalSpent;
     if (leftAmount < 0) leftAmount = 0;
 
-    // Total allocated from expected expenses (convert to monthly equivalent)
+    // Total allocated from expected expenses (monthly equivalent)
     double totalAllocated = 0;
     for (final exp in expectedExpenses) {
       switch (exp.frequency) {
         case 'daily':
-          totalAllocated += exp.amount * 30; // approximate
+          totalAllocated += exp.amount * 30; // approximate month
           break;
         case 'weekly':
           totalAllocated += exp.amount * 4.33;
@@ -60,11 +65,9 @@ class HomeScreen extends ConsumerWidget {
       }
     }
 
-    // Free money = income - planned
     double freeMoney = totalIncome - totalAllocated;
     if (freeMoney < 0) freeMoney = 0;
 
-    // Daily allowance based on free money
     final now = DateTime.now();
     final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
     final daysLeft = lastDayOfMonth.difference(now).inDays + 1;
@@ -92,7 +95,7 @@ class HomeScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 JarRowWidget(
                   expectedExpenses: expectedExpenses,
-                  jarSpent: {}, // no spending linked yet
+                  jarSpent: jarSpent,
                   totalIncome: totalIncome,
                 ),
                 const SizedBox(height: 24),

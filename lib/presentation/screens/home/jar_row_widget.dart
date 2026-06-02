@@ -28,6 +28,11 @@ class JarRowWidget extends StatelessWidget {
       jarSpent.values,
     );
 
+    print('=== JarRowWidget Debug ===');
+    print('expectedExpenses: ${expectedExpenses.map((e) => e.title).toList()}');
+    print('jarSpent from home: $jarSpent');
+    print('spentLower map: $spentLower');
+
     final sorted = List<ExpectedExpense>.from(expectedExpenses)
       ..sort((a, b) => b.amount.compareTo(a.amount));
 
@@ -41,6 +46,9 @@ class JarRowWidget extends StatelessWidget {
           final exp = sorted[index];
           final lowerTitle = exp.title.toLowerCase();
           final totalSpent = spentLower[lowerTitle] ?? 0.0;
+
+          print(
+              'Checking "${exp.title}" (lower: $lowerTitle) → totalSpent: $totalSpent');
 
           double? actual;
           if (totalSpent > 0) {
