@@ -31,10 +31,10 @@ class AppStrings {
 
   // Bottom nav
   static const navHome = "Home";
-  static const navBudget = "Budget";
+  static const navBudget = "Transactions";
   static const navJournal = "Journal";
   static const navGoals = "Goals";
-  static const navProfile = "Profile";
+  static const navProfile = "Budget";
 
   // General
   static const appName = "LifeBudget";

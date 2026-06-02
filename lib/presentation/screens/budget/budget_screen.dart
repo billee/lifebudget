@@ -24,20 +24,18 @@ class BudgetScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),
         data: (transactions) {
-          // Summary from summaries
-          final totalIncome =
-              summariesAsync.valueOrNull?['__total_income__'] ?? 0.0;
+          final summaries = summariesAsync.valueOrNull ?? {};
+          final totalIncome = summaries['__total_income__'] ?? 0.0;
+
           double totalSpent = 0;
-          summariesAsync.whenData((summaries) {
-            for (final entry in summaries.entries) {
-              if (entry.key == '__total_income__') continue;
-              totalSpent += entry.value;
-            }
-          });
+          for (final entry in summaries.entries) {
+            if (entry.key == '__total_income__') continue;
+            totalSpent += entry.value;
+          }
 
           return Column(
             children: [
-              // Summary cards
+              // Summary cards – side by side
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
@@ -62,7 +60,9 @@ class BudgetScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              const Divider(),
+
+              const Divider(height: 1),
+
               // Transaction list
               Expanded(
                 child: transactions.isEmpty
@@ -134,31 +134,37 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 4),
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 14, color: AppColors.textSecondary)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '₱${amount.toStringAsFixed(0)}',
-            style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.bold, color: color),
-          ),
-        ],
+    return AspectRatio(
+      aspectRatio: 1, // makes it a square
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.cardBackground,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 18, color: color),
+                const SizedBox(width: 6),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 14, color: AppColors.textSecondary)),
+              ],
+            ),
+            const Spacer(),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '₱${amount.toStringAsFixed(0)}',
+                style: TextStyle(
+                    fontSize: 22, fontWeight: FontWeight.bold, color: color),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
