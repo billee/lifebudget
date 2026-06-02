@@ -6,59 +6,65 @@ import 'focus_card_widget.dart';
 import 'home_header.dart';
 import 'daily_allowance_card.dart';
 import '../../providers/transaction_provider.dart'; // jarSummariesProvider
-import '../../providers/budget_provider.dart'; // jarAllocationsProvider
+import '../../providers/expected_expenses_provider.dart'; // expectedExpensesProvider
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final allocationsAsync = ref.watch(jarAllocationsProvider);
+    final expensesAsync = ref.watch(expectedExpensesProvider);
     final summariesAsync = ref.watch(jarSummariesProvider);
 
-    // Show loading until both are ready
-    if (allocationsAsync.isLoading || summariesAsync.isLoading) {
+    if (expensesAsync.isLoading || summariesAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // Handle errors gracefully
-    if (allocationsAsync.hasError || summariesAsync.hasError) {
+    if (expensesAsync.hasError || summariesAsync.hasError) {
       return const Center(
         child: Text('Something went wrong. Please restart the app.',
             style: TextStyle(fontSize: 16)),
       );
     }
 
-    final allocations = allocationsAsync.value!;
+    final expectedExpenses = expensesAsync.value!;
     final summaries = summariesAsync.value!;
 
-    // Total income for the month (from summaries)
+    // Total income
     final totalIncome = summaries['__total_income__'] ?? 0.0;
 
-    // Total spent (sum of all expenses)
+    // Total spent
     double totalSpent = 0;
-    final Map<String, double> jarSpent = {};
     for (final entry in summaries.entries) {
       if (entry.key == '__total_income__') continue;
-      jarSpent[entry.key] = entry.value;
       totalSpent += entry.value;
     }
 
-    // Left to use = income - spent (shown in the ring)
+    // Left to use (actual)
     double leftAmount = totalIncome - totalSpent;
     if (leftAmount < 0) leftAmount = 0;
 
-    // Compute total allocated from jar percentages
+    // Total allocated from expected expenses (convert to monthly equivalent)
     double totalAllocated = 0;
-    for (final alloc in allocations) {
-      totalAllocated += totalIncome * (alloc.percentage / 100);
+    for (final exp in expectedExpenses) {
+      switch (exp.frequency) {
+        case 'daily':
+          totalAllocated += exp.amount * 30; // approximate
+          break;
+        case 'weekly':
+          totalAllocated += exp.amount * 4.33;
+          break;
+        case 'monthly':
+          totalAllocated += exp.amount;
+          break;
+      }
     }
 
-    // Free money = income - planned allocations
+    // Free money = income - planned
     double freeMoney = totalIncome - totalAllocated;
     if (freeMoney < 0) freeMoney = 0;
 
-    // Daily allowance based on free money and days left
+    // Daily allowance based on free money
     final now = DateTime.now();
     final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
     final daysLeft = lastDayOfMonth.difference(now).inDays + 1;
@@ -85,8 +91,8 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 JarRowWidget(
-                  allocations: allocations,
-                  jarSpent: jarSpent,
+                  expectedExpenses: expectedExpenses,
+                  jarSpent: {}, // no spending linked yet
                   totalIncome: totalIncome,
                 ),
                 const SizedBox(height: 24),
