@@ -44,16 +44,26 @@ class HomeScreen extends ConsumerWidget {
       totalSpent += entry.value;
     }
 
-    // Left to use = income - spent
+    // Left to use = income - spent (shown in the ring)
     double leftAmount = totalIncome - totalSpent;
     if (leftAmount < 0) leftAmount = 0;
 
-    // Daily allowance calculation
+    // Compute total allocated from jar percentages
+    double totalAllocated = 0;
+    for (final alloc in allocations) {
+      totalAllocated += totalIncome * (alloc.percentage / 100);
+    }
+
+    // Free money = income - planned allocations
+    double freeMoney = totalIncome - totalAllocated;
+    if (freeMoney < 0) freeMoney = 0;
+
+    // Daily allowance based on free money and days left
     final now = DateTime.now();
     final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
     final daysLeft = lastDayOfMonth.difference(now).inDays + 1;
     final double dailyAllowance =
-        daysLeft > 0 ? leftAmount / daysLeft : leftAmount;
+        daysLeft > 0 ? freeMoney / daysLeft : freeMoney;
 
     return Column(
       children: [
@@ -66,8 +76,7 @@ class HomeScreen extends ConsumerWidget {
               children: [
                 HealthRingWidget(
                   leftAmount: leftAmount,
-                  totalBudget:
-                      totalIncome, // now the ring says "of your income"
+                  totalBudget: totalIncome,
                 ),
                 const SizedBox(height: 16),
                 DailyAllowanceCard(

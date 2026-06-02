@@ -16,7 +16,6 @@ class JarRowWidget extends StatelessWidget {
     required this.totalIncome,
   });
 
-  // Color and icon for each jar
   static const _jarMeta = {
     'rent': _JarMeta(AppColors.rent, FontAwesomeIcons.house),
     'food': _JarMeta(AppColors.food, FontAwesomeIcons.utensils),
@@ -28,14 +27,22 @@ class JarRowWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Sort allocations by computed peso amount (descending)
+    final sortedAllocs = List<JarAllocation>.from(allocations)
+      ..sort((a, b) {
+        final aAmount = totalIncome * (a.percentage / 100);
+        final bAmount = totalIncome * (b.percentage / 100);
+        return bAmount.compareTo(aAmount);
+      });
+
     return SizedBox(
       height: 110,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: allocations.length,
+        itemCount: sortedAllocs.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
-          final alloc = allocations[index];
+          final alloc = sortedAllocs[index];
           final allocatedAmount = totalIncome * (alloc.percentage / 100);
           final spent = jarSpent[alloc.jarName] ?? 0.0;
           final remaining = allocatedAmount - spent;

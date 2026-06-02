@@ -20,3 +20,9 @@ final jarSummariesProvider = FutureProvider<Map<String, double>>((ref) async {
   final repo = ref.watch(transactionRepositoryProvider);
   return await repo.getJarSummaries();
 });
+
+final allTransactionsProvider =
+    FutureProvider<List<TransactionModel>>((ref) async {
+  final repo = ref.watch(transactionRepositoryProvider);
+  return await repo.getAllTransactions();
+});

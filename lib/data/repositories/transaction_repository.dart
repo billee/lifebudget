@@ -60,4 +60,14 @@ class TransactionRepository {
 
     return summaries;
   }
+
+// Get all transactions (both income and expense) for current month, newest first
+  Future<List<TransactionModel>> getAllTransactions() async {
+    final db = await _dbHelper.database;
+    final maps = await db.query(
+      DatabaseConstants.transactionsTable,
+      orderBy: '${DatabaseConstants.colDate} DESC',
+    );
+    return maps.map((map) => TransactionModel.fromMap(map)).toList();
+  }
 }
