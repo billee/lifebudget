@@ -17,7 +17,8 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(path,
+        version: 3, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -43,15 +44,29 @@ class DatabaseHelper {
         UNIQUE(${DatabaseConstants.colMonth}, ${DatabaseConstants.colJarName})
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE ${DatabaseConstants.expectedExpensesTable} (
+        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        frequency TEXT NOT NULL,
+        amount REAL NOT NULL,
+        month TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      await db.execute(
-          'DROP TABLE IF EXISTS ${DatabaseConstants.jarAllocationsTable}');
-      await db.execute(
-          'DROP TABLE IF EXISTS budget_plans'); // remove old table if it exists
-      await _createDB(db, newVersion);
+    if (oldVersion < 3) {
+      await db.execute('''
+      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.expectedExpensesTable} (
+        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        frequency TEXT NOT NULL,
+        amount REAL NOT NULL,
+        month TEXT NOT NULL
+      )
+    ''');
     }
   }
 }

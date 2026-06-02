@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../data/repositories/budget_repository.dart';
-import '../../providers/budget_provider.dart'; // jarAllocationsProvider, budgetRepositoryProvider
-import '../../providers/transaction_provider.dart'; // jarSummariesProvider
+import '../../../data/models/expected_expense_model.dart';
+import '../../providers/expected_expenses_provider.dart';
 import '../../widgets/common/lifebudget_scaffold.dart';
-import '../../../data/models/budget_plan_model.dart'; // JarAllocation
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -15,228 +13,235 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  final Map<String, double> _allocated = {
-    'rent': 0,
-    'food': 0,
-    'transport': 0,
-    'health': 0,
-    'fun': 0,
-    'savings': 0,
-  };
+  final _titleController = TextEditingController();
+  String _frequency = 'monthly';
+  final _amountController = TextEditingController();
+  int? _editingId; // if non-null, we are editing an existing item
 
-  double _totalIncome = 0;
-
-  void _syncFromAllocations(List<JarAllocation> allocs, double totalIncome) {
-    for (final alloc in allocs) {
-      if (_allocated.containsKey(alloc.jarName)) {
-        _allocated[alloc.jarName] = totalIncome * (alloc.percentage / 100);
-      }
-    }
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _amountController.dispose();
+    super.dispose();
   }
 
-  double get _totalAllocated => _allocated.values.fold(0, (sum, v) => sum + v);
-  bool get _isOverBudget => _totalAllocated > _totalIncome && _totalIncome > 0;
+  void _clearForm() {
+    _titleController.clear();
+    _amountController.clear();
+    setState(() {
+      _frequency = 'monthly';
+      _editingId = null;
+    });
+  }
 
   Future<void> _save() async {
-    if (_totalIncome <= 0) {
+    final title = _titleController.text.trim();
+    final amountText = _amountController.text.trim();
+    if (title.isEmpty || amountText.isEmpty) return;
+    final amount = double.tryParse(amountText);
+    if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add some income first!')),
+        const SnackBar(content: Text('Enter a valid amount')),
       );
       return;
     }
 
     final month =
         '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
-    final repo = ref.read(budgetRepositoryProvider);
-    final newAllocs = _allocated.entries.map((e) {
-      final percentage = (e.value / _totalIncome) * 100;
-      return JarAllocation(
-          month: month, jarName: e.key, percentage: percentage);
-    }).toList();
+    final repo = ref.read(expectedExpenseRepositoryProvider);
 
-    await repo.saveJarAllocations(month, newAllocs);
-    ref.invalidate(jarAllocationsProvider);
-    ref.invalidate(jarSummariesProvider);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Your jars have been updated!'),
-          backgroundColor: AppColors.primary,
-        ),
+    if (_editingId == null) {
+      // Insert new
+      final expense = ExpectedExpense(
+        title: title,
+        frequency: _frequency,
+        amount: amount,
+        month: month,
       );
+      await repo.insert(expense);
+    } else {
+      // Update existing
+      final expense = ExpectedExpense(
+        id: _editingId,
+        title: title,
+        frequency: _frequency,
+        amount: amount,
+        month: month,
+      );
+      await repo.update(expense);
     }
+
+    ref.invalidate(expectedExpensesProvider);
+    _clearForm();
+  }
+
+  void _edit(ExpectedExpense expense) {
+    setState(() {
+      _editingId = expense.id;
+      _titleController.text = expense.title;
+      _frequency = expense.frequency;
+      _amountController.text = expense.amount.toStringAsFixed(0);
+    });
+  }
+
+  Future<void> _delete(int id) async {
+    final repo = ref.read(expectedExpenseRepositoryProvider);
+    await repo.delete(id);
+    ref.invalidate(expectedExpensesProvider);
   }
 
   @override
   Widget build(BuildContext context) {
-    final allocationsAsync = ref.watch(jarAllocationsProvider);
-    final summariesAsync = ref.watch(jarSummariesProvider);
-
-    _totalIncome = summariesAsync.valueOrNull?['__total_income__'] ?? 0;
-
-    // Sync once when allocations load (but only if we haven't manually adjusted)
-    allocationsAsync.whenData((allocs) {
-      // Only sync if the user hasn't made changes yet (all zeros)
-      bool allZero = _allocated.values.every((v) => v == 0);
-      if (allZero) {
-        _syncFromAllocations(allocs, _totalIncome);
-      }
-    });
-
-    final double sliderMax = _totalIncome > 0 ? _totalIncome : 1000.0;
-    final int divisions = ((sliderMax / 100).ceil()).clamp(1, 1000);
+    final expensesAsync = ref.watch(expectedExpensesProvider);
 
     return LifeBudgetScaffold(
       appBar: AppBar(
-        title: const Text('Your Budget', style: TextStyle(color: Colors.white)),
+        title: const Text('Expected Expenses',
+            style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: allocationsAsync.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardBackground,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.attach_money,
-                            color: AppColors.primary),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Income received this month',
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppColors.textSecondary)),
-                            Text('₱ ${_totalIncome.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                    fontSize: 24, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  const Text('How would you like to split your income?',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-
-                  // Jar sliders
-                  ..._allocated.entries.map((entry) {
-                    final jarName = entry.key;
-                    final amount = entry.value;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                jarName[0].toUpperCase() + jarName.substring(1),
-                                style: const TextStyle(
-                                    fontSize: 14, fontWeight: FontWeight.w500),
-                              ),
-                              Text(
-                                '₱${amount.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Slider(
-                            value: amount.clamp(0, sliderMax),
-                            min: 0,
-                            max: sliderMax,
-                            divisions: divisions,
-                            label: '₱${amount.toStringAsFixed(0)}',
-                            activeColor: AppColors.primary,
-                            onChanged: (newValue) {
-                              setState(() {
-                                _allocated[jarName] = newValue;
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 4),
-                        ],
-                      ),
-                    );
-                  }),
-
-                  const SizedBox(height: 12),
-
-                  // Total and warning
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Total allocated: ₱${_totalAllocated.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      if (_isOverBudget)
-                        const Icon(Icons.warning_amber_rounded,
-                            color: AppColors.warning),
-                    ],
-                  ),
-                  if (_isOverBudget)
-                    Container(
-                      margin: const EdgeInsets.only(top: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.warning.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.info_outline,
-                              size: 20, color: AppColors.warning),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              "You're allocating more than your income. That's okay if you have savings, but double-check.",
-                              style: TextStyle(
-                                  color: AppColors.warning, fontSize: 13),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 24),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _save,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Text('Save', style: TextStyle(fontSize: 18)),
-                    ),
-                  ),
-                ],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- Form ---
+            Text(
+              _editingId == null
+                  ? 'Add Expected Expense'
+                  : 'Edit Expected Expense',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _titleController,
+              decoration: InputDecoration(
+                labelText: 'Title',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.white,
               ),
             ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _frequency,
+              items: ['daily', 'weekly', 'monthly']
+                  .map((f) => DropdownMenuItem(
+                        value: f,
+                        child: Text(f[0].toUpperCase() + f.substring(1)),
+                      ))
+                  .toList(),
+              onChanged: (val) {
+                if (val != null) setState(() => _frequency = val);
+              },
+              decoration: InputDecoration(
+                labelText: 'Frequency',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _amountController,
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: 'Amount (₱)',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _save,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text(_editingId == null ? 'Save' : 'Update',
+                        style: const TextStyle(fontSize: 16)),
+                  ),
+                ),
+                if (_editingId != null) ...[
+                  const SizedBox(width: 12),
+                  TextButton(
+                    onPressed: _clearForm,
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 24),
+            const Divider(),
+            const SizedBox(height: 16),
+
+            // --- List of expected expenses ---
+            const Text('Your Expected Expenses',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            expensesAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => Center(child: Text('Error: $err')),
+              data: (expenses) {
+                if (expenses.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No expected expenses yet.\nAdd one above!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  );
+                }
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: expenses.length,
+                  itemBuilder: (context, index) {
+                    final exp = expenses[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        title: Text(exp.title,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Text(
+                          '${exp.frequency[0].toUpperCase()}${exp.frequency.substring(1)} — ₱${exp.amount.toStringAsFixed(0)}',
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit,
+                                  color: AppColors.primary),
+                              onPressed: () => _edit(exp),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete,
+                                  color: AppColors.critical),
+                              onPressed: () => _delete(exp.id!),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

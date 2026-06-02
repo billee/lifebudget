@@ -2,6 +2,7 @@ class DatabaseConstants {
   // Tables
   static const String transactionsTable = 'transactions';
   static const String jarAllocationsTable = 'jar_allocations';
+  static const String expectedExpensesTable = 'expected_expenses';
 
   // Common columns
   static const String colId = 'id';
