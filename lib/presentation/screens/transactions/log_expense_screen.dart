@@ -52,6 +52,7 @@ class _LogExpenseScreenState extends ConsumerState<LogExpenseScreen> {
 
     // Invalidate summaries to refresh UI
     ref.invalidate(jarSummariesProvider);
+    ref.invalidate(allTransactionsProvider);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

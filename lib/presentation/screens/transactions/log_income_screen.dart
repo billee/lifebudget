@@ -48,6 +48,7 @@ class _LogIncomeScreenState extends ConsumerState<LogIncomeScreen> {
     final repo = ref.read(transactionRepositoryProvider);
     await repo.insertTransaction(transaction);
     ref.invalidate(jarSummariesProvider);
+    ref.invalidate(allTransactionsProvider);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
