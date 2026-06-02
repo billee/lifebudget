@@ -1,37 +1,35 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/utils/emotional_tone_helper.dart';
-import 'package:go_router/go_router.dart';
-import '../../screens/jars/jar_detail_screen.dart';
 
 class JarCardWidget extends StatelessWidget {
   final IconData icon;
   final String name;
-  final double remaining;
-  final double total;
+  final double amount;
+  final String frequency; // 'daily', 'weekly', 'monthly'
+  final bool isEstimated; // true for planned expenses
   final Color color;
 
   const JarCardWidget({
     super.key,
     required this.icon,
     required this.name,
-    required this.remaining,
-    required this.total,
+    required this.amount,
+    required this.frequency,
+    this.isEstimated = true,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    final double usedPercent = (total - remaining) / total;
-    final String status = getJarStatusLabel(usedPercent);
+    final frequencyLabel = frequency[0].toUpperCase() + frequency.substring(1);
+    final statusText = isEstimated ? 'Planned' : 'Actual avg';
+    final statusColor =
+        isEstimated ? AppColors.textSecondary : AppColors.primary;
+
     return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => JarDetailScreen(jarName: name)),
-        );
-      },
+      onTap: () {},
       child: Container(
-        width: 140,
+        width: 150,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.cardBackground,
@@ -42,30 +40,55 @@ class JarCardWidget extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, size: 16, color: AppColors.textPrimary),
-                const SizedBox(width: 4),
-                Text(name,
+                Icon(icon, size: 18, color: color),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    name,
                     style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 13)),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 6),
-            Text('₱${remaining.toInt()}',
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: usedPercent,
-                minHeight: 6,
-                backgroundColor: Colors.grey[300],
-                valueColor: AlwaysStoppedAnimation<Color>(color),
+            const SizedBox(height: 8),
+            Text(
+              '₱${amount.toStringAsFixed(0)}',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 4),
-            Text(status,
-                style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                frequencyLabel,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: color,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const Spacer(),
+            Text(
+              statusText,
+              style: TextStyle(
+                fontSize: 11,
+                color: statusColor,
+                fontStyle: isEstimated ? FontStyle.italic : FontStyle.normal,
+              ),
+            ),
           ],
         ),
       ),

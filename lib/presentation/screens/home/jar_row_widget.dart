@@ -6,8 +6,8 @@ import '../../../data/models/expected_expense_model.dart';
 
 class JarRowWidget extends StatelessWidget {
   final List<ExpectedExpense> expectedExpenses;
-  final Map<String, double> jarSpent; // currently unused
-  final double totalIncome; // currently unused
+  final Map<String, double> jarSpent; // unused for now
+  final double totalIncome; // unused for now
 
   const JarRowWidget({
     super.key,
@@ -18,38 +18,35 @@ class JarRowWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Sort expenses by amount (descending)
+    // Sort by amount descending
     final sorted = List<ExpectedExpense>.from(expectedExpenses)
       ..sort((a, b) => b.amount.compareTo(a.amount));
 
     return SizedBox(
-      height: 110,
+      height: 150, // a bit taller to accommodate new layout
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: sorted.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           final exp = sorted[index];
-          // Allocated amount = the entered amount (could be daily/weekly/monthly)
-          final allocated = exp.amount;
-          // No spending yet
-          final remaining = allocated;
+          final color = _colorForTitle(exp.title); // optional color coding
 
           return JarCardWidget(
             icon: _iconForFrequency(exp.frequency),
             name: exp.title,
-            remaining: remaining,
-            total: allocated,
-            color:
-                AppColors.primary, // or a custom color per category if desired
+            amount: exp.amount,
+            frequency: exp.frequency,
+            isEstimated: true,
+            color: color,
           );
         },
       ),
     );
   }
 
-  IconData _iconForFrequency(String frequency) {
-    switch (frequency) {
+  IconData _iconForFrequency(String freq) {
+    switch (freq) {
       case 'daily':
         return FontAwesomeIcons.calendarDay;
       case 'weekly':
@@ -59,5 +56,22 @@ class JarRowWidget extends StatelessWidget {
       default:
         return FontAwesomeIcons.calendar;
     }
+  }
+
+  Color _colorForTitle(String title) {
+    // Simple color assignment based on common keywords
+    final lower = title.toLowerCase();
+    if (lower.contains('rent')) return AppColors.rent;
+    if (lower.contains('food') || lower.contains('grocer'))
+      return AppColors.food;
+    if (lower.contains('transport') || lower.contains('commute'))
+      return AppColors.transport;
+    if (lower.contains('health') || lower.contains('medical'))
+      return AppColors.health;
+    if (lower.contains('fun') || lower.contains('entertain'))
+      return AppColors.fun;
+    if (lower.contains('saving') || lower.contains('invest'))
+      return AppColors.primary;
+    return AppColors.primary;
   }
 }
