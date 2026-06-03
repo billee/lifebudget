@@ -47,7 +47,6 @@ class HomeScreen extends ConsumerWidget {
     double leftAmount = totalIncome - totalSpent;
     if (leftAmount < 0) leftAmount = 0;
 
-    // Convert expected expenses to monthly totals using actual days in this month
     final now = DateTime.now();
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
     double totalAllocated = 0;
@@ -73,9 +72,21 @@ class HomeScreen extends ConsumerWidget {
     final double dailyAllowance =
         daysLeft > 0 ? freeMoney / daysLeft : freeMoney;
 
+    // --- Status line for top header ---
+    String statusLine;
+    if (totalIncome == 0) {
+      statusLine = "Let’s start by adding your income for the month.";
+    } else if (freeMoney <= 0) {
+      statusLine = "Every peso has a job — you’re on top of your plan.";
+    } else if (freeMoney < totalIncome * 0.1) {
+      statusLine = "A little tight — but still manageable.";
+    } else {
+      statusLine = "You’re on track this week.";
+    }
+
     return Column(
       children: [
-        const HomeHeader(),
+        HomeHeader(statusLine: statusLine),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -98,7 +109,10 @@ class HomeScreen extends ConsumerWidget {
                   totalIncome: totalIncome,
                 ),
                 const SizedBox(height: 24),
-                const FocusCardWidget(),
+                FocusCardWidget(
+                  dailyAllowance: dailyAllowance,
+                  daysLeft: daysLeft,
+                ),
                 const SizedBox(height: 100),
               ],
             ),

@@ -1,12 +1,36 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_strings.dart';
 
 class FocusCardWidget extends StatelessWidget {
-  const FocusCardWidget({super.key});
+  final double dailyAllowance;
+  final int daysLeft;
+  const FocusCardWidget({
+    super.key,
+    required this.dailyAllowance,
+    required this.daysLeft,
+  });
 
   @override
   Widget build(BuildContext context) {
+    String message;
+    IconData icon;
+
+    if (dailyAllowance <= 0) {
+      icon = Icons.lightbulb_outline;
+      message = "Your planned expenses are using all your income right now. "
+          "That’s okay — it just means every peso has a job. "
+          "If you feel squeezed, try adjusting one of your envelopes.";
+    } else if (dailyAllowance < 100) {
+      icon = Icons.tips_and_updates;
+      message =
+          "You have ₱${dailyAllowance.toInt()} left per day — a little room to breathe. "
+          "Small amounts add up!";
+    } else {
+      icon = Icons.emoji_events;
+      message = "You’re doing great! With ₱${dailyAllowance.toInt()} a day, "
+          "you’ve got space to save or treat yourself.";
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -17,10 +41,10 @@ class FocusCardWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('🎉', style: TextStyle(fontSize: 24)),
-          const SizedBox(height: 8),
+          Icon(icon, size: 28, color: AppColors.primary),
+          const SizedBox(height: 12),
           Text(
-            AppStrings.celebrationText,
+            message,
             style: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
           ),
           const SizedBox(height: 16),
@@ -32,10 +56,9 @@ class FocusCardWidget extends StatelessWidget {
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                    borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Awesome!'),
+              child: const Text('Got it'),
             ),
           ),
         ],

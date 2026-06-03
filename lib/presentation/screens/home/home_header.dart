@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/utils/emotional_tone_helper.dart';
 
 class HomeHeader extends StatelessWidget {
-  const HomeHeader({super.key});
+  final String statusLine;
+  const HomeHeader({super.key, required this.statusLine});
 
   @override
   Widget build(BuildContext context) {
-    const double percentageUsed = 0.6;
-    final String statusLine = getStatusLine(percentageUsed);
-
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
       decoration: BoxDecoration(
@@ -26,7 +23,6 @@ class HomeHeader extends StatelessWidget {
         bottom: false,
         child: Row(
           children: [
-            // Avatar with white background for contrast
             CircleAvatar(
               radius: 20,
               backgroundColor: Colors.white,

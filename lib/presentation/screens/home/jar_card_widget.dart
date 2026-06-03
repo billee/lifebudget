@@ -5,8 +5,8 @@ class JarCardWidget extends StatelessWidget {
   final IconData icon;
   final String name;
   final double plannedAmount;
-  final String frequency; // 'daily', 'weekly', 'monthly'
-  final double? actualAmount; // null if no actual spending yet
+  final String frequency;
+  final double? actualAmount;
   final Color color;
 
   const JarCardWidget({
@@ -22,10 +22,6 @@ class JarCardWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final displayedAmount = actualAmount ?? plannedAmount;
-    final statusText = actualAmount != null ? 'Actual' : 'Planned';
-    final statusColor =
-        actualAmount != null ? AppColors.primary : AppColors.textSecondary;
-
     final frequencyLabel = frequency[0].toUpperCase() + frequency.substring(1);
 
     return GestureDetector(
@@ -82,16 +78,7 @@ class JarCardWidget extends StatelessWidget {
                 ),
               ),
             ),
-            const Spacer(),
-            Text(
-              statusText,
-              style: TextStyle(
-                fontSize: 11,
-                color: statusColor,
-                fontWeight:
-                    actualAmount != null ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
+            // No status label – card ends cleanly
           ],
         ),
       ),
