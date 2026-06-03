@@ -5,8 +5,8 @@ import 'jar_row_widget.dart';
 import 'focus_card_widget.dart';
 import 'home_header.dart';
 import 'daily_allowance_card.dart';
-import '../../providers/transaction_provider.dart'; // allTransactionsProvider
-import '../../providers/expected_expenses_provider.dart'; // expectedExpensesProvider
+import '../../providers/transaction_provider.dart';
+import '../../providers/expected_expenses_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -14,8 +14,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final expensesAsync = ref.watch(expectedExpensesProvider);
-    final allTxnsAsync =
-        ref.watch(allTransactionsProvider); // <— now using all transactions
+    final allTxnsAsync = ref.watch(allTransactionsProvider);
 
     if (expensesAsync.isLoading || allTxnsAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -31,7 +30,6 @@ class HomeScreen extends ConsumerWidget {
     final expectedExpenses = expensesAsync.value!;
     final transactions = allTxnsAsync.value!;
 
-    // Compute totals from transactions
     double totalIncome = 0;
     double totalSpent = 0;
     final Map<String, double> jarSpent = {};
@@ -49,15 +47,17 @@ class HomeScreen extends ConsumerWidget {
     double leftAmount = totalIncome - totalSpent;
     if (leftAmount < 0) leftAmount = 0;
 
-    // Total allocated from expected expenses (monthly equivalent)
+    // Convert expected expenses to monthly totals using actual days in this month
+    final now = DateTime.now();
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
     double totalAllocated = 0;
     for (final exp in expectedExpenses) {
       switch (exp.frequency) {
         case 'daily':
-          totalAllocated += exp.amount * 30; // approximate month
+          totalAllocated += exp.amount * daysInMonth;
           break;
         case 'weekly':
-          totalAllocated += exp.amount * 4.33;
+          totalAllocated += exp.amount * (daysInMonth / 7);
           break;
         case 'monthly':
           totalAllocated += exp.amount;
@@ -68,7 +68,6 @@ class HomeScreen extends ConsumerWidget {
     double freeMoney = totalIncome - totalAllocated;
     if (freeMoney < 0) freeMoney = 0;
 
-    final now = DateTime.now();
     final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
     final daysLeft = lastDayOfMonth.difference(now).inDays + 1;
     final double dailyAllowance =
