@@ -7,6 +7,8 @@ import 'home_header.dart';
 import 'daily_allowance_card.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/expected_expenses_provider.dart';
+import '../../../core/constants/app_colors.dart';
+import '../slip_up/slip_up_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -114,6 +116,21 @@ class HomeScreen extends ConsumerWidget {
                   daysLeft: daysLeft,
                 ),
                 const SizedBox(height: 100),
+                const SizedBox(height: 12),
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SlipUpScreen()),
+                      );
+                    },
+                    child: const Text(
+                      "Had a rough day? It's okay.",
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 14),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

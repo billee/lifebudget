@@ -54,6 +54,16 @@ class DatabaseHelper {
         month TEXT NOT NULL
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE ${DatabaseConstants.slipUpsTable} (
+        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        amount REAL,
+        mood TEXT NOT NULL,
+        note TEXT
+      )
+    ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
