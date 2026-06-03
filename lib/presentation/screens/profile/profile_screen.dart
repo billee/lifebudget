@@ -127,7 +127,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _frequency,
-              items: ['daily', 'weekly', 'monthly']
+              items: ['daily', 'monthly']
                   .map((f) => DropdownMenuItem(
                         value: f,
                         child: Text(f[0].toUpperCase() + f.substring(1)),
