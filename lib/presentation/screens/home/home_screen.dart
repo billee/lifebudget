@@ -9,6 +9,7 @@ import '../../providers/transaction_provider.dart';
 import '../../providers/expected_expenses_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../slip_up/slip_up_screen.dart';
+import '../../providers/slip_up_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -17,6 +18,8 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final expensesAsync = ref.watch(expectedExpensesProvider);
     final allTxnsAsync = ref.watch(allTransactionsProvider);
+    final daysSinceSlipUpAsync = ref.watch(daysSinceLastSlipUpProvider);
+    final daysSinceSlipUp = daysSinceSlipUpAsync.valueOrNull;
 
     if (expensesAsync.isLoading || allTxnsAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
