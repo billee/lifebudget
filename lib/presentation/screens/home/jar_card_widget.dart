@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/number_formatter.dart';
 
 class JarCardWidget extends StatelessWidget {
   final IconData icon;
@@ -55,7 +56,7 @@ class JarCardWidget extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '₱${displayedAmount.toStringAsFixed(0)}',
+              formatAmount(displayedAmount),
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,

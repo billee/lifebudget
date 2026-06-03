@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/number_formatter.dart';
 
 class FocusCardWidget extends StatelessWidget {
   final double dailyAllowance;
@@ -23,11 +24,12 @@ class FocusCardWidget extends StatelessWidget {
     } else if (dailyAllowance < 100) {
       icon = Icons.tips_and_updates;
       message =
-          "You have ₱${dailyAllowance.toInt()} left per day — a little room to breathe. "
+          "You have ${formatAmount(dailyAllowance)} left per day — a little room to breathe. "
           "Small amounts add up!";
     } else {
       icon = Icons.emoji_events;
-      message = "You’re doing great! With ₱${dailyAllowance.toInt()} a day, "
+      message =
+          "You’re doing great! With ${formatAmount(dailyAllowance)} a day, "
           "you’ve got space to save or treat yourself.";
     }
 

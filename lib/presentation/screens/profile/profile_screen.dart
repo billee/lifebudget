@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/number_formatter.dart';
 import '../../../data/models/expected_expense_model.dart';
 import '../../providers/expected_expenses_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../widgets/common/lifebudget_scaffold.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -16,12 +19,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _titleController = TextEditingController();
   String _frequency = 'monthly';
   final _amountController = TextEditingController();
-  int? _editingId; // if non-null, we are editing an existing item
+  int? _editingId;
+
+  final _nameController = TextEditingController();
 
   @override
   void dispose() {
     _titleController.dispose();
     _amountController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -51,7 +57,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final repo = ref.read(expectedExpenseRepositoryProvider);
 
     if (_editingId == null) {
-      // Insert new
       final expense = ExpectedExpense(
         title: title,
         frequency: _frequency,
@@ -60,7 +65,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
       await repo.insert(expense);
     } else {
-      // Update existing
       final expense = ExpectedExpense(
         id: _editingId,
         title: title,
@@ -90,14 +94,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ref.invalidate(expectedExpensesProvider);
   }
 
+  Future<void> _saveName() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_name', name);
+    ref.invalidate(userNameProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final expensesAsync = ref.watch(expectedExpensesProvider);
+    final nameAsync = ref.watch(userNameProvider);
+    final currentName = nameAsync.value ?? '';
 
     return LifeBudgetScaffold(
       appBar: AppBar(
-        title: const Text('Expected Expenses',
-            style: TextStyle(color: Colors.white)),
+        title: const Text('Your Budget', style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -106,7 +119,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Form ---
+            // --- Name field ---
+            const Text('Your Name',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _nameController..text = currentName,
+                    decoration: InputDecoration(
+                      hintText: 'Enter your name',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: _saveName,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Save'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            const Divider(),
+            const SizedBox(height: 16),
+
+            // --- Expected expenses form (unchanged except number formatting) ---
             Text(
               _editingId == null
                   ? 'Add Expected Expense'
@@ -149,7 +195,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               controller: _amountController,
               keyboardType: TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
-                labelText: 'Amount (₱)',
+                labelText: 'Amount',
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
@@ -186,7 +232,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const Divider(),
             const SizedBox(height: 16),
 
-            // --- List of expected expenses ---
             const Text('Your Expected Expenses',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
@@ -216,7 +261,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             style:
                                 const TextStyle(fontWeight: FontWeight.w600)),
                         subtitle: Text(
-                          '${exp.frequency[0].toUpperCase()}${exp.frequency.substring(1)} — ₱${exp.amount.toStringAsFixed(0)}',
+                          '${exp.frequency[0].toUpperCase()}${exp.frequency.substring(1)} — ${formatAmount(exp.amount)}',
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/number_formatter.dart';
 
 class DailyAllowanceCard extends StatelessWidget {
   final double dailyAllowance;
@@ -36,7 +37,7 @@ class DailyAllowanceCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '₱ ${dailyAllowance.toInt()}',
+                  formatAmount(dailyAllowance),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppColors.textPrimary,

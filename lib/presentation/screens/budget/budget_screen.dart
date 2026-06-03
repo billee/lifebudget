@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../data/models/transaction_model.dart';
 import '../../providers/transaction_provider.dart';
 import '../../widgets/common/lifebudget_scaffold.dart';
+import '../../../core/utils/number_formatter.dart';
 
 class BudgetScreen extends ConsumerWidget {
   const BudgetScreen({super.key});
@@ -90,8 +91,8 @@ class BudgetScreen extends ConsumerWidget {
                             ),
                             title: Text(
                               isIncome
-                                  ? '+₱${t.amount.toStringAsFixed(0)}'
-                                  : '-₱${t.amount.toStringAsFixed(0)}',
+                                  ? '+${t.amount.toStringAsFixed(0)}'
+                                  : '-${t.amount.toStringAsFixed(0)}',
                               style:
                                   const TextStyle(fontWeight: FontWeight.w600),
                             ),
@@ -158,7 +159,7 @@ class _SummaryCard extends StatelessWidget {
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
-                '₱${amount.toStringAsFixed(0)}',
+                formatAmount(amount),
                 style: TextStyle(
                     fontSize: 22, fontWeight: FontWeight.bold, color: color),
               ),

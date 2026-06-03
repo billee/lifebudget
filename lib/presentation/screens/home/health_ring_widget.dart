@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/number_formatter.dart';
 
 class HealthRingWidget extends StatelessWidget {
   final double leftAmount;
@@ -41,7 +42,7 @@ class HealthRingWidget extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '₱${leftAmount.toInt()}',
+                  formatAmount(leftAmount),
                   style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
