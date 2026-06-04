@@ -6,6 +6,7 @@ class DatabaseConstants {
   static const String slipUpsTable = 'slip_ups';
   static const String archivedTransactionsTable = 'archived_transactions';
   static const String journalTable = 'journal_entries';
+  static const String goalsTable = 'goals';
 
   // Common columns
   static const String colId = 'id';

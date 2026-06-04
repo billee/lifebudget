@@ -6,11 +6,13 @@ import 'jar_row_widget.dart';
 import 'focus_card_widget.dart';
 import 'home_header.dart';
 import 'daily_allowance_card.dart';
+import 'goals_preview.dart';
 import 'celebration_overlay.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/expected_expenses_provider.dart';
 import '../../providers/slip_up_provider.dart';
 import '../../providers/milestone_provider.dart';
+import '../../providers/goal_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/emotional_messages.dart';
 import '../../../core/utils/number_formatter.dart';
@@ -21,11 +23,12 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // --- Data ---
+    // ---- Data ----
     final expensesAsync = ref.watch(expectedExpensesProvider);
     final allTxnsAsync = ref.watch(allTransactionsProvider);
     final daysSinceSlipUpAsync = ref.watch(daysSinceLastSlipUpProvider);
     final milestoneAsync = ref.watch(newMilestoneProvider);
+    final goalsAsync = ref.watch(goalsProvider);
 
     if (expensesAsync.isLoading || allTxnsAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -43,7 +46,7 @@ class HomeScreen extends ConsumerWidget {
     final daysSinceSlipUp = daysSinceSlipUpAsync.valueOrNull;
     final milestone = milestoneAsync.valueOrNull;
 
-    // ---- Totals ----
+    // ---- Totals (incl. savings) ----
     double totalIncome = 0;
     double totalSpent = 0;
     final Map<String, double> jarSpent = {};
@@ -52,6 +55,7 @@ class HomeScreen extends ConsumerWidget {
       if (t.type == 'income') {
         totalIncome += t.amount;
       } else {
+        // expense or savings – both reduce available money
         totalSpent += t.amount;
         final jar = t.jar.toLowerCase();
         jarSpent[jar] = (jarSpent[jar] ?? 0) + t.amount;
@@ -126,6 +130,27 @@ class HomeScreen extends ConsumerWidget {
     }
     final bool isOverBudget = maxOverRatio > 1.0;
 
+    // ---- Nearest goal nudge ----
+    String? nearestGoalMessage;
+    final goals = goalsAsync.valueOrNull ?? [];
+    if (goals.isNotEmpty) {
+      final incomplete = goals.where((g) => !g.isCompleted).toList();
+      if (incomplete.isNotEmpty) {
+        incomplete.sort((a, b) {
+          final remainingA = a.targetAmount - a.currentAmount;
+          final remainingB = b.targetAmount - b.currentAmount;
+          return remainingA.compareTo(remainingB);
+        });
+        final closest = incomplete.first;
+        final remaining = closest.targetAmount - closest.currentAmount;
+        if (remaining <= 500) {
+          nearestGoalMessage =
+              "You're ${formatAmount(remaining)} away from “${closest.title}”. "
+              "You're almost there!";
+        }
+      }
+    }
+
     // ---- Emotional messages ----
     String statusLine;
     String? focusOverrideMessage;
@@ -178,7 +203,10 @@ class HomeScreen extends ConsumerWidget {
                     plannedRates: plannedDailyRates,
                   ),
                   const SizedBox(height: 24),
-
+                  // Goals preview (only if there are active goals)
+                  const GoalsPreview(),
+                  if (goals.any((g) => !g.isCompleted))
+                    const SizedBox(height: 24),
                   // ---- Milestone or Focus Card ----
                   if (milestone != null)
                     CelebrationOverlay(
@@ -199,6 +227,7 @@ class HomeScreen extends ConsumerWidget {
                       daysLeft: daysLeft,
                       daysSinceLastSlipUp: daysSinceSlipUp,
                       overrideMessage: focusOverrideMessage,
+                      nearestGoalMessage: nearestGoalMessage,
                     ),
                     const SizedBox(height: 12),
                     Center(

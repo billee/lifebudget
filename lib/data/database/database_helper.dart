@@ -86,6 +86,18 @@ class DatabaseHelper {
         do_differently TEXT
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE ${DatabaseConstants.goalsTable} (
+        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        target_amount REAL NOT NULL,
+        current_amount REAL NOT NULL DEFAULT 0,
+        emoji TEXT NOT NULL,
+        is_completed INTEGER NOT NULL DEFAULT 0,
+        created_date TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {

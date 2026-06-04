@@ -7,6 +7,7 @@ class FocusCardWidget extends StatelessWidget {
   final int daysLeft;
   final int? daysSinceLastSlipUp;
   final String? overrideMessage;
+  final String? nearestGoalMessage;
 
   const FocusCardWidget({
     super.key,
@@ -14,6 +15,7 @@ class FocusCardWidget extends StatelessWidget {
     required this.daysLeft,
     this.daysSinceLastSlipUp,
     this.overrideMessage,
+    this.nearestGoalMessage,
   });
 
   @override
@@ -55,6 +57,11 @@ class FocusCardWidget extends StatelessWidget {
         message +=
             "\n\nWith ${formatAmount(dailyAllowance)} a day, you've got breathing room.";
       }
+    }
+
+    // Add goal nudge if available
+    if (nearestGoalMessage != null) {
+      message = "$nearestGoalMessage\n\n$message";
     }
 
     return Container(
