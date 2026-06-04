@@ -6,9 +6,9 @@ import '../../../data/models/expected_expense_model.dart';
 
 class JarRowWidget extends StatelessWidget {
   final List<ExpectedExpense> expectedExpenses;
-  final Map<String, double> jarSpent;
+  final Map<String, double> jarSpent; // jar name → total spent this month
   final double totalIncome;
-  final Map<String, double> dailyRates; // actual daily rates (or null)
+  final Map<String, double> dailyRates; // actual daily rates (for daily/weekly)
   final Map<String, double> plannedRates; // planned daily rates
 
   const JarRowWidget({
@@ -34,17 +34,65 @@ class JarRowWidget extends StatelessWidget {
         itemBuilder: (context, index) {
           final exp = sorted[index];
           final key = exp.title.toLowerCase();
-          final actualDaily = dailyRates[key] ?? 0;
-          final plannedDaily = plannedRates[key] ?? 0;
-          final overBudgetRatio =
-              plannedDaily > 0 ? actualDaily / plannedDaily : 1.0;
+          final double plannedAmount = exp.amount; // as stored
+          final double actualSpent = jarSpent[key] ?? 0.0;
+
+          // Determine what amount to display
+          double displayedAmount;
+          double overBudgetRatio = 1.0;
+
+          switch (exp.frequency) {
+            case 'daily':
+              // Show actual daily average if spent > 0, else planned daily
+              displayedAmount = actualSpent > 0
+                  ? (actualSpent /
+                      (DateTime.now()
+                              .difference(DateTime(
+                                  DateTime.now().year, DateTime.now().month, 1))
+                              .inDays +
+                          1))
+                  : plannedAmount;
+              // Ratio: actual daily rate / planned daily
+              final double actualDaily =
+                  actualSpent > 0 ? displayedAmount : plannedAmount;
+              overBudgetRatio =
+                  plannedAmount > 0 ? actualDaily / plannedAmount : 1.0;
+              break;
+
+            case 'weekly':
+              // Similar to daily but using weekly average – not used currently
+              final weeksElapsed = ((DateTime.now()
+                              .difference(DateTime(
+                                  DateTime.now().year, DateTime.now().month, 1))
+                              .inDays +
+                          1) /
+                      7)
+                  .ceil();
+              final double actualWeekly =
+                  actualSpent > 0 ? actualSpent / weeksElapsed : 0;
+              displayedAmount = actualSpent > 0 ? actualWeekly : plannedAmount;
+              overBudgetRatio =
+                  plannedAmount > 0 ? actualWeekly / plannedAmount : 1.0;
+              break;
+
+            case 'monthly':
+              // Show total spent so far (or planned monthly if no spending)
+              displayedAmount = actualSpent > 0 ? actualSpent : plannedAmount;
+              // Ratio: spent / planned
+              overBudgetRatio =
+                  plannedAmount > 0 ? actualSpent / plannedAmount : 1.0;
+              break;
+
+            default:
+              displayedAmount = plannedAmount;
+          }
 
           return JarCardWidget(
             icon: _iconForFrequency(exp.frequency),
             name: exp.title,
             plannedAmount: exp.amount,
             frequency: exp.frequency,
-            actualAmount: actualDaily > 0 ? actualDaily : null,
+            actualAmount: displayedAmount,
             color: _colorForTitle(exp.title),
             overBudgetRatio: overBudgetRatio,
           );
