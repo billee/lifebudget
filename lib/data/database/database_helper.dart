@@ -76,6 +76,16 @@ class DatabaseHelper {
         archived_month TEXT NOT NULL
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE ${DatabaseConstants.journalTable} (
+        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        mood TEXT NOT NULL,
+        went_well TEXT,
+        do_differently TEXT
+      )
+    ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
