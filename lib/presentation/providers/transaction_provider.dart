@@ -26,3 +26,7 @@ final allTransactionsProvider =
   final repo = ref.watch(transactionRepositoryProvider);
   return await repo.getAllTransactions();
 });
+
+final freshStartProvider = FutureProvider.autoDispose<void>((ref) async {
+  // This provider will be used to trigger the action and then invalidate others
+});

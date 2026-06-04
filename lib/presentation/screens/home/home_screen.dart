@@ -7,9 +7,10 @@ import 'home_header.dart';
 import 'daily_allowance_card.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/expected_expenses_provider.dart';
-import '../../../core/constants/app_colors.dart';
-import '../slip_up/slip_up_screen.dart';
 import '../../providers/slip_up_provider.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/number_formatter.dart';
+import '../slip_up/slip_up_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -52,30 +53,55 @@ class HomeScreen extends ConsumerWidget {
     double leftAmount = totalIncome - totalSpent;
     if (leftAmount < 0) leftAmount = 0;
 
+    // Current month info
     final now = DateTime.now();
+    final firstDay = DateTime(now.year, now.month, 1);
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    double totalAllocated = 0;
+    final daysElapsed = now.difference(firstDay).inDays + 1; // today counts
+
+    // --- Build a daily rate for each expected expense ---
+    // If actual spending exists, use its daily average; else use the planned rate.
+    final Map<String, double> dailyRates = {};
     for (final exp in expectedExpenses) {
-      switch (exp.frequency) {
-        case 'daily':
-          totalAllocated += exp.amount * daysInMonth;
-          break;
-        case 'weekly':
-          totalAllocated += exp.amount * (daysInMonth / 7);
-          break;
-        case 'monthly':
-          totalAllocated += exp.amount;
-          break;
+      final key = exp.title.toLowerCase();
+      final spent = jarSpent[key] ?? 0.0;
+      double dailyRate;
+      if (spent > 0) {
+        // actual average per day
+        dailyRate = spent / daysElapsed;
+      } else {
+        // planned rate based on frequency
+        switch (exp.frequency) {
+          case 'daily':
+            dailyRate = exp.amount;
+            break;
+          case 'weekly':
+            dailyRate = exp.amount / 7;
+            break;
+          case 'monthly':
+            dailyRate = exp.amount / daysInMonth;
+            break;
+          default:
+            dailyRate = exp.amount / daysInMonth;
+        }
       }
+      dailyRates[key] = dailyRate;
+    }
+
+    // Total allocated (monthly equivalent) = sum of dailyRates × daysInMonth
+    double totalAllocated = 0;
+    for (final rate in dailyRates.values) {
+      totalAllocated += rate * daysInMonth;
     }
 
     double freeMoney = totalIncome - totalAllocated;
     if (freeMoney < 0) freeMoney = 0;
 
+    // Days left in month
     final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
     final daysLeft = lastDayOfMonth.difference(now).inDays + 1;
     final double dailyAllowance =
-        daysLeft > 0 ? freeMoney / daysLeft : freeMoney;
+        (freeMoney <= 0 || daysLeft <= 0) ? 0.0 : freeMoney / daysLeft;
 
     // --- Status line for top header ---
     String statusLine;
@@ -88,6 +114,17 @@ class HomeScreen extends ConsumerWidget {
     } else {
       statusLine = "You’re on track this week.";
     }
+
+    // --- Debug (remove later) ---
+    print('=== HomeScreen Debug ===');
+    print('totalIncome: $totalIncome');
+    print('totalSpent: $totalSpent');
+    print('leftAmount (ring): $leftAmount');
+    print('dailyRates: $dailyRates');
+    print('totalAllocated: $totalAllocated');
+    print('freeMoney: $freeMoney');
+    print('daysLeft: $daysLeft');
+    print('dailyAllowance: $dailyAllowance');
 
     return Column(
       children: [
@@ -117,8 +154,8 @@ class HomeScreen extends ConsumerWidget {
                 FocusCardWidget(
                   dailyAllowance: dailyAllowance,
                   daysLeft: daysLeft,
+                  daysSinceLastSlipUp: daysSinceSlipUp,
                 ),
-                const SizedBox(height: 100),
                 const SizedBox(height: 12),
                 Center(
                   child: TextButton(
@@ -134,6 +171,7 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 100),
               ],
             ),
           ),

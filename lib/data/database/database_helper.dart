@@ -64,6 +64,18 @@ class DatabaseHelper {
         note TEXT
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE ${DatabaseConstants.archivedTransactionsTable} (
+        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DatabaseConstants.colType} TEXT NOT NULL,
+        ${DatabaseConstants.colJar} TEXT NOT NULL,
+        ${DatabaseConstants.colAmount} REAL NOT NULL,
+        ${DatabaseConstants.colDate} TEXT NOT NULL,
+        ${DatabaseConstants.colNote} TEXT,
+        archived_month TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {

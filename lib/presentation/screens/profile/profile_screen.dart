@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../data/models/expected_expense_model.dart';
 import '../../providers/expected_expenses_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/transaction_provider.dart';
+import '../../providers/slip_up_provider.dart';
 import '../../widgets/common/lifebudget_scaffold.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -102,6 +104,54 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ref.invalidate(userNameProvider);
   }
 
+  void _showFreshStartDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Start Fresh?'),
+        content: const Text(
+          'This will clear all your logged expenses and income for this month. '
+          'They’ll be saved in your history, but your current spending will reset to zero.\n\n'
+          'Are you sure?',
+          style: TextStyle(height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final month =
+                  '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
+              final repo = ref.read(transactionRepositoryProvider);
+              await repo.archiveMonth(month);
+
+              ref.invalidate(allTransactionsProvider);
+              ref.invalidate(jarSummariesProvider);
+              ref.invalidate(daysSinceLastSlipUpProvider);
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Fresh start! Your month is clean.'),
+                    backgroundColor: AppColors.primary,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Yes, Start Fresh'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final expensesAsync = ref.watch(expectedExpensesProvider);
@@ -152,7 +202,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const Divider(),
             const SizedBox(height: 16),
 
-            // --- Expected expenses form (unchanged except number formatting) ---
+            // --- Expected expenses form ---
             Text(
               _editingId == null
                   ? 'Add Expected Expense'
@@ -232,6 +282,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const Divider(),
             const SizedBox(height: 16),
 
+            // --- Expected expenses list ---
             const Text('Your Expected Expenses',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
@@ -283,6 +334,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   },
                 );
               },
+            ),
+
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 16),
+
+            // --- Fresh Start section ---
+            const Text(
+              'Need a fresh start?',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'If this month feels too heavy, you can wipe your spending clean and start over. '
+              'Your past transactions will be saved in your history.',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _showFreshStartDialog,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Start Fresh This Month',
+                    style: TextStyle(fontSize: 16)),
+              ),
             ),
           ],
         ),

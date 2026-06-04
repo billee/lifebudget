@@ -61,7 +61,7 @@ class TransactionRepository {
     return summaries;
   }
 
-// Get all transactions (both income and expense) for current month, newest first
+  // Get all transactions (both income and expense) for current month, newest first
   Future<List<TransactionModel>> getAllTransactions() async {
     final db = await _dbHelper.database;
     final maps = await db.query(
@@ -69,5 +69,26 @@ class TransactionRepository {
       orderBy: '${DatabaseConstants.colDate} DESC',
     );
     return maps.map((map) => TransactionModel.fromMap(map)).toList();
+  }
+
+// Archive all transactions for the given month and delete them from active
+  Future<void> archiveMonth(String month) async {
+    final db = await _dbHelper.database;
+
+    // 1. Copy transactions to archive
+    await db.rawInsert('''
+    INSERT INTO ${DatabaseConstants.archivedTransactionsTable}
+    (${DatabaseConstants.colType}, ${DatabaseConstants.colJar}, ${DatabaseConstants.colAmount}, ${DatabaseConstants.colDate}, ${DatabaseConstants.colNote}, archived_month)
+    SELECT ${DatabaseConstants.colType}, ${DatabaseConstants.colJar}, ${DatabaseConstants.colAmount}, ${DatabaseConstants.colDate}, ${DatabaseConstants.colNote}, ? 
+    FROM ${DatabaseConstants.transactionsTable}
+    WHERE strftime('%Y-%m', ${DatabaseConstants.colDate}) = ?
+    ''', [month, month]);
+
+    // 2. Delete active transactions for that month
+    await db.delete(
+      DatabaseConstants.transactionsTable,
+      where: "strftime('%Y-%m', ${DatabaseConstants.colDate}) = ?",
+      whereArgs: [month],
+    );
   }
 }
