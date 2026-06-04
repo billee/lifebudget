@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'health_ring_widget.dart';
 import 'jar_row_widget.dart';
 import 'focus_card_widget.dart';
 import 'home_header.dart';
 import 'daily_allowance_card.dart';
+import 'celebration_overlay.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/expected_expenses_provider.dart';
 import '../../providers/slip_up_provider.dart';
+import '../../providers/milestone_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/emotional_messages.dart';
 import '../../../core/utils/number_formatter.dart';
@@ -18,10 +21,11 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // --- Data ---
     final expensesAsync = ref.watch(expectedExpensesProvider);
     final allTxnsAsync = ref.watch(allTransactionsProvider);
     final daysSinceSlipUpAsync = ref.watch(daysSinceLastSlipUpProvider);
-    final daysSinceSlipUp = daysSinceSlipUpAsync.valueOrNull;
+    final milestoneAsync = ref.watch(newMilestoneProvider);
 
     if (expensesAsync.isLoading || allTxnsAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -36,6 +40,8 @@ class HomeScreen extends ConsumerWidget {
 
     final expectedExpenses = expensesAsync.value!;
     final transactions = allTxnsAsync.value!;
+    final daysSinceSlipUp = daysSinceSlipUpAsync.valueOrNull;
+    final milestone = milestoneAsync.valueOrNull;
 
     // ---- Totals ----
     double totalIncome = 0;
@@ -59,7 +65,7 @@ class HomeScreen extends ConsumerWidget {
     final now = DateTime.now();
     final firstDay = DateTime(now.year, now.month, 1);
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    final daysElapsed = now.difference(firstDay).inDays + 1; // today counts
+    final daysElapsed = now.difference(firstDay).inDays + 1;
 
     // ---- Planned daily rates ----
     final Map<String, double> plannedDailyRates = {};
@@ -78,12 +84,11 @@ class HomeScreen extends ConsumerWidget {
       }
     }
 
-    // ---- Actual daily rates (from spending) ----
+    // ---- Actual daily rates ----
     final Map<String, double> actualDailyRates = {};
     for (final entry in jarSpent.entries) {
       actualDailyRates[entry.key] = entry.value / daysElapsed;
     }
-    // For categories with no spending, use planned rate
     for (final exp in expectedExpenses) {
       final key = exp.title.toLowerCase();
       if (!actualDailyRates.containsKey(key)) {
@@ -91,7 +96,6 @@ class HomeScreen extends ConsumerWidget {
       }
     }
 
-    // ---- Monthly allocations based on actual daily rates ----
     double totalAllocated = 0;
     for (final rate in actualDailyRates.values) {
       totalAllocated += rate * daysInMonth;
@@ -105,7 +109,7 @@ class HomeScreen extends ConsumerWidget {
     final double dailyAllowance =
         (freeMoney <= 0 || daysLeft <= 0) ? 0.0 : freeMoney / daysLeft;
 
-    // ---- Find most overspent category ----
+    // ---- Overspent analysis ----
     String? mostOverspentCategory;
     double maxOverRatio = 1.0;
     for (final exp in expectedExpenses) {
@@ -149,7 +153,6 @@ class HomeScreen extends ConsumerWidget {
         Expanded(
           child: RefreshIndicator(
             onRefresh: () async {
-              // Invalidate a provider to rebuild and get a new random message
               ref.invalidate(allTransactionsProvider);
             },
             child: SingleChildScrollView(
@@ -175,28 +178,45 @@ class HomeScreen extends ConsumerWidget {
                     plannedRates: plannedDailyRates,
                   ),
                   const SizedBox(height: 24),
-                  FocusCardWidget(
-                    dailyAllowance: dailyAllowance,
-                    daysLeft: daysLeft,
-                    daysSinceLastSlipUp: daysSinceSlipUp,
-                    overrideMessage: focusOverrideMessage,
-                  ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => const SlipUpScreen()),
-                        );
+
+                  // ---- Milestone or Focus Card ----
+                  if (milestone != null)
+                    CelebrationOverlay(
+                      milestone: milestone,
+                      onDismiss: () async {
+                        final prefs = await SharedPreferences.getInstance();
+                        final shown =
+                            prefs.getStringList('shown_milestones') ?? [];
+                        shown.add(milestone.id);
+                        await prefs.setStringList('shown_milestones', shown);
+                        ref.invalidate(newMilestoneProvider);
+                        ref.invalidate(shownMilestonesProvider);
                       },
-                      child: const Text(
-                        "Had a rough day? It's okay.",
-                        style: TextStyle(
-                            color: AppColors.textSecondary, fontSize: 14),
+                    )
+                  else ...[
+                    FocusCardWidget(
+                      dailyAllowance: dailyAllowance,
+                      daysLeft: daysLeft,
+                      daysSinceLastSlipUp: daysSinceSlipUp,
+                      overrideMessage: focusOverrideMessage,
+                    ),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const SlipUpScreen()),
+                          );
+                        },
+                        child: const Text(
+                          "Had a rough day? It's okay.",
+                          style: TextStyle(
+                              color: AppColors.textSecondary, fontSize: 14),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                   const SizedBox(height: 100),
                 ],
               ),
