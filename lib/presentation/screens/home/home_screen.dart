@@ -9,6 +9,7 @@ import '../../providers/transaction_provider.dart';
 import '../../providers/expected_expenses_provider.dart';
 import '../../providers/slip_up_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/emotional_messages.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../slip_up/slip_up_screen.dart';
 
@@ -36,6 +37,7 @@ class HomeScreen extends ConsumerWidget {
     final expectedExpenses = expensesAsync.value!;
     final transactions = allTxnsAsync.value!;
 
+    // ---- Totals ----
     double totalIncome = 0;
     double totalSpent = 0;
     final Map<String, double> jarSpent = {};
@@ -53,12 +55,13 @@ class HomeScreen extends ConsumerWidget {
     double leftAmount = totalIncome - totalSpent;
     if (leftAmount < 0) leftAmount = 0;
 
+    // ---- Time helpers ----
     final now = DateTime.now();
     final firstDay = DateTime(now.year, now.month, 1);
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    final daysElapsed = now.difference(firstDay).inDays + 1;
+    final daysElapsed = now.difference(firstDay).inDays + 1; // today counts
 
-    // Compute planned daily rate for each expected expense
+    // ---- Planned daily rates ----
     final Map<String, double> plannedDailyRates = {};
     for (final exp in expectedExpenses) {
       final key = exp.title.toLowerCase();
@@ -75,13 +78,12 @@ class HomeScreen extends ConsumerWidget {
       }
     }
 
-    // Actual daily rates (from spending)
+    // ---- Actual daily rates (from spending) ----
     final Map<String, double> actualDailyRates = {};
     for (final entry in jarSpent.entries) {
       actualDailyRates[entry.key] = entry.value / daysElapsed;
     }
-
-    // For jars with no spending yet, use planned rate as actual (so they're equal)
+    // For categories with no spending, use planned rate
     for (final exp in expectedExpenses) {
       final key = exp.title.toLowerCase();
       if (!actualDailyRates.containsKey(key)) {
@@ -89,7 +91,7 @@ class HomeScreen extends ConsumerWidget {
       }
     }
 
-    // Total monthly allocation based on actual daily rates
+    // ---- Monthly allocations based on actual daily rates ----
     double totalAllocated = 0;
     for (final rate in actualDailyRates.values) {
       totalAllocated += rate * daysInMonth;
@@ -103,7 +105,7 @@ class HomeScreen extends ConsumerWidget {
     final double dailyAllowance =
         (freeMoney <= 0 || daysLeft <= 0) ? 0.0 : freeMoney / daysLeft;
 
-    // --- Emotional sync: find most overspent category ---
+    // ---- Find most overspent category ----
     String? mostOverspentCategory;
     double maxOverRatio = 1.0;
     for (final exp in expectedExpenses) {
@@ -120,76 +122,84 @@ class HomeScreen extends ConsumerWidget {
     }
     final bool isOverBudget = maxOverRatio > 1.0;
 
-    // --- Status line for header ---
+    // ---- Emotional messages ----
     String statusLine;
+    String? focusOverrideMessage;
+
     if (totalIncome == 0) {
-      statusLine = "Let’s start by adding your income for the month.";
+      statusLine = getRandomMessage('no_income');
+      focusOverrideMessage = null;
     } else if (isOverBudget && mostOverspentCategory != null) {
       statusLine =
-          "Looks like $mostOverspentCategory went a bit over today. That's okay — tomorrow is fresh.";
+          getRandomMessage('overspent', category: mostOverspentCategory);
+      focusOverrideMessage =
+          getRandomMessage('overspent', category: mostOverspentCategory);
     } else if (freeMoney <= 0) {
-      statusLine = "Every peso has a job — you’re on top of your plan.";
-    } else if (freeMoney < totalIncome * 0.1) {
-      statusLine = "A little tight — but still manageable.";
+      statusLine = getRandomMessage('tight');
+      focusOverrideMessage = null;
     } else {
-      statusLine = "You’re on track this week.";
+      statusLine = getRandomMessage('on_track');
+      focusOverrideMessage = null;
     }
 
-    // --- Focus card extra message (we'll pass a flag) ---
-    final String? focusOverrideMessage = isOverBudget
-        ? "You spent more than planned on $mostOverspentCategory today. But you're here, facing it. That's what matters."
-        : null;
-
+    // ---- UI ----
     return Column(
       children: [
         HomeHeader(statusLine: statusLine),
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                HealthRingWidget(
-                  leftAmount: leftAmount,
-                  totalBudget: totalIncome,
-                ),
-                const SizedBox(height: 16),
-                DailyAllowanceCard(
-                  dailyAllowance: dailyAllowance,
-                  daysLeft: daysLeft,
-                ),
-                const SizedBox(height: 16),
-                JarRowWidget(
-                  expectedExpenses: expectedExpenses,
-                  jarSpent: jarSpent,
-                  totalIncome: totalIncome,
-                  dailyRates: actualDailyRates,
-                  plannedRates: plannedDailyRates,
-                ),
-                const SizedBox(height: 24),
-                FocusCardWidget(
-                  dailyAllowance: dailyAllowance,
-                  daysLeft: daysLeft,
-                  daysSinceLastSlipUp: daysSinceSlipUp,
-                  overrideMessage: focusOverrideMessage,
-                ),
-                const SizedBox(height: 12),
-                Center(
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const SlipUpScreen()),
-                      );
-                    },
-                    child: const Text(
-                      "Had a rough day? It's okay.",
-                      style: TextStyle(
-                          color: AppColors.textSecondary, fontSize: 14),
+          child: RefreshIndicator(
+            onRefresh: () async {
+              // Invalidate a provider to rebuild and get a new random message
+              ref.invalidate(allTransactionsProvider);
+            },
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  HealthRingWidget(
+                    leftAmount: leftAmount,
+                    totalBudget: totalIncome,
+                  ),
+                  const SizedBox(height: 16),
+                  DailyAllowanceCard(
+                    dailyAllowance: dailyAllowance,
+                    daysLeft: daysLeft,
+                  ),
+                  const SizedBox(height: 16),
+                  JarRowWidget(
+                    expectedExpenses: expectedExpenses,
+                    jarSpent: jarSpent,
+                    totalIncome: totalIncome,
+                    dailyRates: actualDailyRates,
+                    plannedRates: plannedDailyRates,
+                  ),
+                  const SizedBox(height: 24),
+                  FocusCardWidget(
+                    dailyAllowance: dailyAllowance,
+                    daysLeft: daysLeft,
+                    daysSinceLastSlipUp: daysSinceSlipUp,
+                    overrideMessage: focusOverrideMessage,
+                  ),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const SlipUpScreen()),
+                        );
+                      },
+                      child: const Text(
+                        "Had a rough day? It's okay.",
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 14),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 100),
-              ],
+                  const SizedBox(height: 100),
+                ],
+              ),
             ),
           ),
         ),
