@@ -5,13 +5,15 @@ import '../../../core/utils/number_formatter.dart';
 class FocusCardWidget extends StatelessWidget {
   final double dailyAllowance;
   final int daysLeft;
-  final int? daysSinceLastSlipUp; // null = never slipped up
+  final int? daysSinceLastSlipUp;
+  final String? overrideMessage;
 
   const FocusCardWidget({
     super.key,
     required this.dailyAllowance,
     required this.daysLeft,
     this.daysSinceLastSlipUp,
+    this.overrideMessage,
   });
 
   @override
@@ -19,35 +21,40 @@ class FocusCardWidget extends StatelessWidget {
     String message;
     IconData icon;
 
-    // --- Slip-up streak message ---
-    if (daysSinceLastSlipUp == null) {
-      // User has never slipped up
-      icon = Icons.sunny;
-      message =
-          "You haven't had a rough day since you started. That's amazing!";
-    } else if (daysSinceLastSlipUp == 0) {
-      icon = Icons.heart_broken;
-      message =
-          "Yesterday was tough — but today is a new day. You're still here.";
-    } else if (daysSinceLastSlipUp == 1) {
-      icon = Icons.sentiment_satisfied;
-      message = "It's been a day since your last slip-up. One step at a time.";
+    if (overrideMessage != null) {
+      message = overrideMessage!;
+      icon = Icons.info_outline;
     } else {
-      icon = Icons.emoji_events;
-      message =
-          "You've gone $daysSinceLastSlipUp days without a rough day. That's strength.";
-    }
+      // Slip-up streak message
+      if (daysSinceLastSlipUp == null) {
+        icon = Icons.sunny;
+        message =
+            "You haven't had a rough day since you started. That's amazing!";
+      } else if (daysSinceLastSlipUp == 0) {
+        icon = Icons.heart_broken;
+        message =
+            "Yesterday was tough — but today is a new day. You're still here.";
+      } else if (daysSinceLastSlipUp == 1) {
+        icon = Icons.sentiment_satisfied;
+        message =
+            "It's been a day since your last slip-up. One step at a time.";
+      } else {
+        icon = Icons.emoji_events;
+        message =
+            "You've gone $daysSinceLastSlipUp days without a rough day. That's strength.";
+      }
 
-    // --- Daily allowance part ---
-    if (dailyAllowance <= 0) {
-      message +=
-          "\n\nYour planned expenses cover all your income — every peso has a job.";
-    } else if (dailyAllowance < 100) {
-      message +=
-          "\n\nYou have ${formatAmount(dailyAllowance)} left per day. Small amounts add up.";
-    } else {
-      message +=
-          "\n\nWith ${formatAmount(dailyAllowance)} a day, you've got breathing room.";
+      // Append daily allowance info
+      if (dailyAllowance <= 0) {
+        message +=
+            "\n\nYour planned expenses cover all your income — every peso has a job.";
+      } else if (dailyAllowance < 100) {
+        message +=
+            "\n\nYou have ${formatAmount(dailyAllowance)} left per day. Small amounts add up.";
+      } else {
+        message +=
+            "\n\nWith ${formatAmount(dailyAllowance)} a day, you've got breathing room.";
+      }
     }
 
     return Container(

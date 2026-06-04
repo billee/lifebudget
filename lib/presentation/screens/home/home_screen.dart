@@ -53,60 +53,80 @@ class HomeScreen extends ConsumerWidget {
     double leftAmount = totalIncome - totalSpent;
     if (leftAmount < 0) leftAmount = 0;
 
-    // Current month info
     final now = DateTime.now();
     final firstDay = DateTime(now.year, now.month, 1);
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    final daysElapsed = now.difference(firstDay).inDays + 1; // today counts
+    final daysElapsed = now.difference(firstDay).inDays + 1;
 
-    // --- Build a daily rate for each expected expense ---
-    // If actual spending exists, use its daily average; else use the planned rate.
-    final Map<String, double> dailyRates = {};
+    // Compute planned daily rate for each expected expense
+    final Map<String, double> plannedDailyRates = {};
     for (final exp in expectedExpenses) {
       final key = exp.title.toLowerCase();
-      final spent = jarSpent[key] ?? 0.0;
-      double dailyRate;
-      if (spent > 0) {
-        // actual average per day
-        dailyRate = spent / daysElapsed;
-      } else {
-        // planned rate based on frequency
-        switch (exp.frequency) {
-          case 'daily':
-            dailyRate = exp.amount;
-            break;
-          case 'weekly':
-            dailyRate = exp.amount / 7;
-            break;
-          case 'monthly':
-            dailyRate = exp.amount / daysInMonth;
-            break;
-          default:
-            dailyRate = exp.amount / daysInMonth;
-        }
+      switch (exp.frequency) {
+        case 'daily':
+          plannedDailyRates[key] = exp.amount;
+          break;
+        case 'weekly':
+          plannedDailyRates[key] = exp.amount / 7;
+          break;
+        case 'monthly':
+          plannedDailyRates[key] = exp.amount / daysInMonth;
+          break;
       }
-      dailyRates[key] = dailyRate;
     }
 
-    // Total allocated (monthly equivalent) = sum of dailyRates × daysInMonth
+    // Actual daily rates (from spending)
+    final Map<String, double> actualDailyRates = {};
+    for (final entry in jarSpent.entries) {
+      actualDailyRates[entry.key] = entry.value / daysElapsed;
+    }
+
+    // For jars with no spending yet, use planned rate as actual (so they're equal)
+    for (final exp in expectedExpenses) {
+      final key = exp.title.toLowerCase();
+      if (!actualDailyRates.containsKey(key)) {
+        actualDailyRates[key] = plannedDailyRates[key] ?? 0;
+      }
+    }
+
+    // Total monthly allocation based on actual daily rates
     double totalAllocated = 0;
-    for (final rate in dailyRates.values) {
+    for (final rate in actualDailyRates.values) {
       totalAllocated += rate * daysInMonth;
     }
 
     double freeMoney = totalIncome - totalAllocated;
     if (freeMoney < 0) freeMoney = 0;
 
-    // Days left in month
     final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
     final daysLeft = lastDayOfMonth.difference(now).inDays + 1;
     final double dailyAllowance =
         (freeMoney <= 0 || daysLeft <= 0) ? 0.0 : freeMoney / daysLeft;
 
-    // --- Status line for top header ---
+    // --- Emotional sync: find most overspent category ---
+    String? mostOverspentCategory;
+    double maxOverRatio = 1.0;
+    for (final exp in expectedExpenses) {
+      final key = exp.title.toLowerCase();
+      final planned = plannedDailyRates[key] ?? 0;
+      final actual = actualDailyRates[key] ?? 0;
+      if (planned > 0) {
+        final ratio = actual / planned;
+        if (ratio > maxOverRatio) {
+          maxOverRatio = ratio;
+          mostOverspentCategory = exp.title;
+        }
+      }
+    }
+    final bool isOverBudget = maxOverRatio > 1.0;
+
+    // --- Status line for header ---
     String statusLine;
     if (totalIncome == 0) {
       statusLine = "Let’s start by adding your income for the month.";
+    } else if (isOverBudget && mostOverspentCategory != null) {
+      statusLine =
+          "Looks like $mostOverspentCategory went a bit over today. That's okay — tomorrow is fresh.";
     } else if (freeMoney <= 0) {
       statusLine = "Every peso has a job — you’re on top of your plan.";
     } else if (freeMoney < totalIncome * 0.1) {
@@ -115,16 +135,10 @@ class HomeScreen extends ConsumerWidget {
       statusLine = "You’re on track this week.";
     }
 
-    // --- Debug (remove later) ---
-    print('=== HomeScreen Debug ===');
-    print('totalIncome: $totalIncome');
-    print('totalSpent: $totalSpent');
-    print('leftAmount (ring): $leftAmount');
-    print('dailyRates: $dailyRates');
-    print('totalAllocated: $totalAllocated');
-    print('freeMoney: $freeMoney');
-    print('daysLeft: $daysLeft');
-    print('dailyAllowance: $dailyAllowance');
+    // --- Focus card extra message (we'll pass a flag) ---
+    final String? focusOverrideMessage = isOverBudget
+        ? "You spent more than planned on $mostOverspentCategory today. But you're here, facing it. That's what matters."
+        : null;
 
     return Column(
       children: [
@@ -149,12 +163,15 @@ class HomeScreen extends ConsumerWidget {
                   expectedExpenses: expectedExpenses,
                   jarSpent: jarSpent,
                   totalIncome: totalIncome,
+                  dailyRates: actualDailyRates,
+                  plannedRates: plannedDailyRates,
                 ),
                 const SizedBox(height: 24),
                 FocusCardWidget(
                   dailyAllowance: dailyAllowance,
                   daysLeft: daysLeft,
                   daysSinceLastSlipUp: daysSinceSlipUp,
+                  overrideMessage: focusOverrideMessage,
                 ),
                 const SizedBox(height: 12),
                 Center(

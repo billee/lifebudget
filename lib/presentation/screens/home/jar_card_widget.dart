@@ -7,8 +7,10 @@ class JarCardWidget extends StatelessWidget {
   final String name;
   final double plannedAmount;
   final String frequency;
-  final double? actualAmount;
+  final double? actualAmount; // actual average daily spend if available
   final Color color;
+  final double
+      overBudgetRatio; // actualDaily / plannedDaily (if > 1 means over)
 
   const JarCardWidget({
     super.key,
@@ -18,12 +20,30 @@ class JarCardWidget extends StatelessWidget {
     required this.frequency,
     this.actualAmount,
     required this.color,
+    this.overBudgetRatio = 1.0,
   });
 
   @override
   Widget build(BuildContext context) {
     final displayedAmount = actualAmount ?? plannedAmount;
     final frequencyLabel = frequency[0].toUpperCase() + frequency.substring(1);
+
+    // Over-budget status label
+    String statusLabel;
+    Color statusColor;
+    if (overBudgetRatio > 1.5) {
+      statusLabel = 'A lot over';
+      statusColor = AppColors.critical;
+    } else if (overBudgetRatio > 1.0) {
+      statusLabel = 'A bit over';
+      statusColor = AppColors.warning;
+    } else if (overBudgetRatio > 0.9) {
+      statusLabel = 'On track';
+      statusColor = AppColors.onTrack;
+    } else {
+      statusLabel = 'Under';
+      statusColor = AppColors.onTrack;
+    }
 
     return GestureDetector(
       onTap: () {},
@@ -79,7 +99,15 @@ class JarCardWidget extends StatelessWidget {
                 ),
               ),
             ),
-            // No status label – card ends cleanly
+            const SizedBox(height: 4),
+            Text(
+              statusLabel,
+              style: TextStyle(
+                fontSize: 11,
+                color: statusColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
         ),
       ),

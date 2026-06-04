@@ -6,73 +6,47 @@ import '../../../data/models/expected_expense_model.dart';
 
 class JarRowWidget extends StatelessWidget {
   final List<ExpectedExpense> expectedExpenses;
-  final Map<String, double> jarSpent; // jar name → total spent this month
+  final Map<String, double> jarSpent;
   final double totalIncome;
+  final Map<String, double> dailyRates; // actual daily rates (or null)
+  final Map<String, double> plannedRates; // planned daily rates
 
   const JarRowWidget({
     super.key,
     required this.expectedExpenses,
     required this.jarSpent,
     required this.totalIncome,
+    required this.dailyRates,
+    required this.plannedRates,
   });
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final firstDay = DateTime(now.year, now.month, 1);
-    final daysElapsed = now.difference(firstDay).inDays + 1;
-
-    // Lowercase map for case‑insensitive matching
-    final spentLower = Map<String, double>.fromIterables(
-      jarSpent.keys.map((k) => k.toLowerCase()),
-      jarSpent.values,
-    );
-
-    print('=== JarRowWidget Debug ===');
-    print('expectedExpenses: ${expectedExpenses.map((e) => e.title).toList()}');
-    print('jarSpent from home: $jarSpent');
-    print('spentLower map: $spentLower');
-
     final sorted = List<ExpectedExpense>.from(expectedExpenses)
       ..sort((a, b) => b.amount.compareTo(a.amount));
 
     return SizedBox(
-      height: 150,
+      height: 160,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: sorted.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           final exp = sorted[index];
-          final lowerTitle = exp.title.toLowerCase();
-          final totalSpent = spentLower[lowerTitle] ?? 0.0;
-
-          print(
-              'Checking "${exp.title}" (lower: $lowerTitle) → totalSpent: $totalSpent');
-
-          double? actual;
-          if (totalSpent > 0) {
-            switch (exp.frequency) {
-              case 'daily':
-                actual = totalSpent / daysElapsed;
-                break;
-              case 'weekly':
-                final weeksElapsed = (daysElapsed / 7).ceil();
-                actual = totalSpent / weeksElapsed;
-                break;
-              case 'monthly':
-                actual = totalSpent;
-                break;
-            }
-          }
+          final key = exp.title.toLowerCase();
+          final actualDaily = dailyRates[key] ?? 0;
+          final plannedDaily = plannedRates[key] ?? 0;
+          final overBudgetRatio =
+              plannedDaily > 0 ? actualDaily / plannedDaily : 1.0;
 
           return JarCardWidget(
             icon: _iconForFrequency(exp.frequency),
             name: exp.title,
             plannedAmount: exp.amount,
             frequency: exp.frequency,
-            actualAmount: actual,
+            actualAmount: actualDaily > 0 ? actualDaily : null,
             color: _colorForTitle(exp.title),
+            overBudgetRatio: overBudgetRatio,
           );
         },
       ),
