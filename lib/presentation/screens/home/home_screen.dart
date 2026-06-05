@@ -25,7 +25,6 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // ---- Data ----
     final expensesAsync = ref.watch(expectedExpensesProvider);
     final allTxnsAsync = ref.watch(allTransactionsProvider);
     final daysSinceSlipUpAsync = ref.watch(daysSinceLastSlipUpProvider);
@@ -48,7 +47,7 @@ class HomeScreen extends ConsumerWidget {
     final daysSinceSlipUp = daysSinceSlipUpAsync.valueOrNull;
     final milestone = milestoneAsync.valueOrNull;
 
-    // ---- Totals (incl. savings) ----
+    // ---- Totals (income, actual spending) ----
     double totalIncome = 0;
     double totalSpent = 0;
     final Map<String, double> jarSpent = {};
@@ -57,7 +56,6 @@ class HomeScreen extends ConsumerWidget {
       if (t.type == 'income') {
         totalIncome += t.amount;
       } else {
-        // expense or savings – both reduce available money
         totalSpent += t.amount;
         final jar = t.jar.toLowerCase();
         jarSpent[jar] = (jarSpent[jar] ?? 0) + t.amount;
@@ -69,65 +67,28 @@ class HomeScreen extends ConsumerWidget {
 
     // ---- Time helpers ----
     final now = DateTime.now();
-    final firstDay = DateTime(now.year, now.month, 1);
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final firstDay = DateTime(now.year, now.month, 1);
     final daysElapsed = now.difference(firstDay).inDays + 1;
 
-    // ---- Planned daily rates (for daily/weekly) ----
-    final Map<String, double> plannedDailyRates = {};
+    // ---- Planned monthly allocations (from fixed expected expenses) ----
+    double plannedMonthlyTotal = 0;
     for (final exp in expectedExpenses) {
-      final key = exp.title.toLowerCase();
       switch (exp.frequency) {
         case 'daily':
-          plannedDailyRates[key] = exp.amount;
+          plannedMonthlyTotal += exp.amount * daysInMonth;
           break;
         case 'weekly':
-          plannedDailyRates[key] = exp.amount / 7;
+          plannedMonthlyTotal += exp.amount * (daysInMonth / 7);
           break;
         case 'monthly':
-          // Not used as a daily rate; will be handled separately
+          plannedMonthlyTotal += exp.amount;
           break;
       }
     }
 
-    // ---- Actual daily rates (from spending) ----
-    final Map<String, double> actualDailyRates = {};
-    for (final entry in jarSpent.entries) {
-      actualDailyRates[entry.key] = entry.value / daysElapsed;
-    }
-    // Fill missing keys with planned (for daily/weekly)
-    for (final exp in expectedExpenses) {
-      final key = exp.title.toLowerCase();
-      if (!actualDailyRates.containsKey(key) && exp.frequency != 'monthly') {
-        actualDailyRates[key] = plannedDailyRates[key] ?? 0;
-      }
-    }
-
-    // ---- Total allocated (monthly equivalent) ----
-    double totalAllocated = 0;
-    for (final exp in expectedExpenses) {
-      final key = exp.title.toLowerCase();
-      final double planned = plannedDailyRates[key] ?? 0;
-      final double actual = actualDailyRates[key] ?? 0;
-
-      switch (exp.frequency) {
-        case 'daily':
-          // Use actual daily average if any spending exists
-          final double dailyRate = (jarSpent[key] ?? 0) > 0 ? actual : planned;
-          totalAllocated += dailyRate * daysInMonth;
-          break;
-        case 'weekly':
-          final double weeklyRate = (jarSpent[key] ?? 0) > 0 ? actual : planned;
-          totalAllocated += weeklyRate * (daysInMonth / 7);
-          break;
-        case 'monthly':
-          // Monthly expenses are fixed planned amounts
-          totalAllocated += exp.amount;
-          break;
-      }
-    }
-
-    double freeMoney = totalIncome - totalAllocated;
+    // Free money after planned allocations
+    double freeMoney = totalIncome - plannedMonthlyTotal;
     if (freeMoney < 0) freeMoney = 0;
 
     final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
@@ -135,16 +96,19 @@ class HomeScreen extends ConsumerWidget {
     final double dailyAllowance =
         (freeMoney <= 0 || daysLeft <= 0) ? 0.0 : freeMoney / daysLeft;
 
-    // ---- Overspent analysis (only for daily/weekly) ----
+    // ---- Overspent analysis (for daily/weekly only) ----
     String? mostOverspentCategory;
     double maxOverRatio = 1.0;
     for (final exp in expectedExpenses) {
       if (exp.frequency == 'monthly') continue; // skip fixed expenses
       final key = exp.title.toLowerCase();
-      final planned = plannedDailyRates[key] ?? 0;
-      final actual = actualDailyRates[key] ?? 0;
-      if (planned > 0) {
-        final ratio = actual / planned;
+      final plannedDaily = (exp.frequency == 'daily')
+          ? exp.amount
+          : exp.amount / 7; // weekly → daily rate
+      final actualSpent = jarSpent[key] ?? 0;
+      final actualDaily = actualSpent / daysElapsed;
+      if (plannedDaily > 0) {
+        final ratio = actualDaily / plannedDaily;
         if (ratio > maxOverRatio) {
           maxOverRatio = ratio;
           mostOverspentCategory = exp.title;
@@ -222,11 +186,8 @@ class HomeScreen extends ConsumerWidget {
                     expectedExpenses: expectedExpenses,
                     jarSpent: jarSpent,
                     totalIncome: totalIncome,
-                    dailyRates: actualDailyRates,
-                    plannedRates: plannedDailyRates,
                   ),
                   const SizedBox(height: 24),
-                  // Goals preview (only if there are active goals)
                   const GoalsPreview(),
                   if (goals.any((g) => !g.isCompleted))
                     const SizedBox(height: 24),

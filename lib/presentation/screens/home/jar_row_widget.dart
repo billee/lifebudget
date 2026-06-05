@@ -8,16 +8,12 @@ class JarRowWidget extends StatelessWidget {
   final List<ExpectedExpense> expectedExpenses;
   final Map<String, double> jarSpent; // jar name → total spent this month
   final double totalIncome;
-  final Map<String, double> dailyRates; // actual daily rates (for daily/weekly)
-  final Map<String, double> plannedRates; // planned daily rates
 
   const JarRowWidget({
     super.key,
     required this.expectedExpenses,
     required this.jarSpent,
     required this.totalIncome,
-    required this.dailyRates,
-    required this.plannedRates,
   });
 
   @override
@@ -25,8 +21,12 @@ class JarRowWidget extends StatelessWidget {
     final sorted = List<ExpectedExpense>.from(expectedExpenses)
       ..sort((a, b) => b.amount.compareTo(a.amount));
 
+    final now = DateTime.now();
+    final firstDay = DateTime(now.year, now.month, 1);
+    final daysElapsed = now.difference(firstDay).inDays + 1;
+
     return SizedBox(
-      height: 160,
+      height: 150,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: sorted.length,
@@ -34,57 +34,31 @@ class JarRowWidget extends StatelessWidget {
         itemBuilder: (context, index) {
           final exp = sorted[index];
           final key = exp.title.toLowerCase();
-          final double plannedAmount = exp.amount; // as stored
+          final double plannedAmount = exp.amount; // stored amount (per period)
           final double actualSpent = jarSpent[key] ?? 0.0;
 
-          // Determine what amount to display
-          double displayedAmount;
+          // Determine over/under ratio based on frequency
           double overBudgetRatio = 1.0;
-
           switch (exp.frequency) {
             case 'daily':
-              // Show actual daily average if spent > 0, else planned daily
-              displayedAmount = actualSpent > 0
-                  ? (actualSpent /
-                      (DateTime.now()
-                              .difference(DateTime(
-                                  DateTime.now().year, DateTime.now().month, 1))
-                              .inDays +
-                          1))
-                  : plannedAmount;
-              // Ratio: actual daily rate / planned daily
-              final double actualDaily =
-                  actualSpent > 0 ? displayedAmount : plannedAmount;
+              final plannedDaily = plannedAmount;
+              final actualDaily = actualSpent / daysElapsed;
               overBudgetRatio =
-                  plannedAmount > 0 ? actualDaily / plannedAmount : 1.0;
+                  plannedDaily > 0 ? actualDaily / plannedDaily : 1.0;
               break;
-
             case 'weekly':
-              // Similar to daily but using weekly average – not used currently
-              final weeksElapsed = ((DateTime.now()
-                              .difference(DateTime(
-                                  DateTime.now().year, DateTime.now().month, 1))
-                              .inDays +
-                          1) /
-                      7)
-                  .ceil();
-              final double actualWeekly =
-                  actualSpent > 0 ? actualSpent / weeksElapsed : 0;
-              displayedAmount = actualSpent > 0 ? actualWeekly : plannedAmount;
+              final weeksElapsed = (daysElapsed / 7).ceil();
+              final plannedWeekly = plannedAmount;
+              final actualWeekly =
+                  weeksElapsed > 0 ? actualSpent / weeksElapsed : 0;
               overBudgetRatio =
-                  plannedAmount > 0 ? actualWeekly / plannedAmount : 1.0;
+                  plannedWeekly > 0 ? actualWeekly / plannedWeekly : 1.0;
               break;
-
             case 'monthly':
-              // Show total spent so far (or planned monthly if no spending)
-              displayedAmount = actualSpent > 0 ? actualSpent : plannedAmount;
-              // Ratio: spent / planned
+              // Compare total spent so far to planned monthly amount
               overBudgetRatio =
                   plannedAmount > 0 ? actualSpent / plannedAmount : 1.0;
               break;
-
-            default:
-              displayedAmount = plannedAmount;
           }
 
           return SizedBox(
@@ -94,7 +68,6 @@ class JarRowWidget extends StatelessWidget {
               name: exp.title,
               plannedAmount: exp.amount,
               frequency: exp.frequency,
-              actualAmount: displayedAmount,
               color: _colorForTitle(exp.title),
               overBudgetRatio: overBudgetRatio,
             ),

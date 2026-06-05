@@ -7,10 +7,8 @@ class JarCardWidget extends StatelessWidget {
   final String name;
   final double plannedAmount;
   final String frequency;
-  final double? actualAmount; // actual average daily spend if available
   final Color color;
-  final double
-      overBudgetRatio; // actualDaily / plannedDaily (if > 1 means over)
+  final double overBudgetRatio; // actual / planned
 
   const JarCardWidget({
     super.key,
@@ -18,17 +16,15 @@ class JarCardWidget extends StatelessWidget {
     required this.name,
     required this.plannedAmount,
     required this.frequency,
-    this.actualAmount,
     required this.color,
     this.overBudgetRatio = 1.0,
   });
 
   @override
   Widget build(BuildContext context) {
-    final displayedAmount = actualAmount ?? plannedAmount;
     final frequencyLabel = frequency[0].toUpperCase() + frequency.substring(1);
 
-    // Over-budget status label
+    // Status label based on ratio
     String statusLabel;
     Color statusColor;
     if (overBudgetRatio > 1.5) {
@@ -75,8 +71,9 @@ class JarCardWidget extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
+            // Show the planned amount (not actual)
             Text(
-              formatAmount(displayedAmount),
+              formatAmount(plannedAmount),
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
