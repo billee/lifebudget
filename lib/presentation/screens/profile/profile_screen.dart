@@ -8,6 +8,8 @@ import '../../providers/expected_expenses_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/slip_up_provider.dart';
+import '../../providers/settings_provider.dart';
+import '../../../services/notification_service.dart';
 import '../../widgets/common/lifebudget_scaffold.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -336,7 +338,69 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               },
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+            const Divider(),
+            const SizedBox(height: 16),
+
+            // --- Daily Reminder ---
+            const Text(
+              'Daily Check‑in Reminder',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'A gentle nudge to stay on track. No pressure.',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 12),
+
+            // Reminder settings (using Consumer to watch the provider)
+            Consumer(
+              builder: (context, ref, _) {
+                final settings = ref.watch(reminderSettingsProvider);
+                return Column(
+                  children: [
+                    SwitchListTile(
+                      title: const Text('Enable daily reminder'),
+                      value: settings.enabled,
+                      onChanged: (val) {
+                        ref
+                            .read(reminderSettingsProvider.notifier)
+                            .setEnabled(val);
+                        NotificationService.instance.scheduleDailyReminder(
+                          enabled: val,
+                          time: settings.time,
+                        );
+                      },
+                      activeColor: AppColors.primary,
+                    ),
+                    if (settings.enabled)
+                      ListTile(
+                        title: const Text('Reminder time'),
+                        subtitle: Text(settings.time.format(context)),
+                        trailing: const Icon(Icons.access_time),
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: settings.time,
+                          );
+                          if (picked != null) {
+                            ref
+                                .read(reminderSettingsProvider.notifier)
+                                .setTime(picked);
+                            NotificationService.instance.scheduleDailyReminder(
+                              enabled: true,
+                              time: picked,
+                            );
+                          }
+                        },
+                      ),
+                  ],
+                );
+              },
+            ),
+
+            const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 16),
 

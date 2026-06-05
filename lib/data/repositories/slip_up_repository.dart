@@ -19,4 +19,15 @@ class SlipUpRepository {
     );
     return maps.map((m) => SlipUp.fromMap(m)).toList();
   }
+
+  Future<List<SlipUp>> getForMonth(String month) async {
+    final db = await _dbHelper.database;
+    final maps = await db.query(
+      DatabaseConstants.slipUpsTable,
+      where: "strftime('%Y-%m', date) = ?",
+      whereArgs: [month],
+      orderBy: 'date DESC',
+    );
+    return maps.map((m) => SlipUp.fromMap(m)).toList();
+  }
 }

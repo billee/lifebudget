@@ -7,6 +7,7 @@ import 'focus_card_widget.dart';
 import 'home_header.dart';
 import 'daily_allowance_card.dart';
 import 'goals_preview.dart';
+import 'insights_card_widget.dart';
 import 'celebration_overlay.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/expected_expenses_provider.dart';
@@ -229,6 +230,9 @@ class HomeScreen extends ConsumerWidget {
                   const GoalsPreview(),
                   if (goals.any((g) => !g.isCompleted))
                     const SizedBox(height: 24),
+                  // ---- Insights ----
+                  const InsightsCardWidget(),
+                  const SizedBox(height: 24),
                   // ---- Milestone or Focus Card ----
                   if (milestone != null)
                     CelebrationOverlay(

@@ -39,6 +39,15 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
+      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.jarAllocationsTable} (
+        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DatabaseConstants.colMonth} TEXT NOT NULL,
+        ${DatabaseConstants.colJarName} TEXT NOT NULL,
+        ${DatabaseConstants.colPercentage} REAL NOT NULL
+      )
+    ''');
+
+    await db.execute('''
       CREATE TABLE IF NOT EXISTS ${DatabaseConstants.expectedExpensesTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,

@@ -71,6 +71,25 @@ class TransactionRepository {
     return maps.map((map) => TransactionModel.fromMap(map)).toList();
   }
 
+  /// Get jar spending totals for a specific archived month.
+  Future<Map<String, double>> getArchivedJarSummaries(String month) async {
+    final db = await _dbHelper.database;
+    final result = await db.rawQuery('''
+      SELECT ${DatabaseConstants.colJar}, SUM(${DatabaseConstants.colAmount}) as total
+      FROM ${DatabaseConstants.archivedTransactionsTable}
+      WHERE archived_month = ? AND ${DatabaseConstants.colType} = 'expense'
+      GROUP BY ${DatabaseConstants.colJar}
+    ''', [month]);
+
+    final Map<String, double> summaries = {};
+    for (final row in result) {
+      final jar = row[DatabaseConstants.colJar] as String;
+      final total = (row['total'] as num?)?.toDouble() ?? 0.0;
+      summaries[jar] = total;
+    }
+    return summaries;
+  }
+
 // Archive all transactions for the given month and delete them from active
   Future<void> archiveMonth(String month) async {
     final db = await _dbHelper.database;
