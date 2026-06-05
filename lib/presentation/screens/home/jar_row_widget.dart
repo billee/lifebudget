@@ -6,24 +6,22 @@ import '../../../data/models/expected_expense_model.dart';
 
 class JarRowWidget extends StatelessWidget {
   final List<ExpectedExpense> expectedExpenses;
-  final Map<String, double> jarSpent; // jar name → total spent this month
+  final Map<String, double> jarSpent;
   final double totalIncome;
+  final int trackingDaysElapsed; // NEW
 
   const JarRowWidget({
     super.key,
     required this.expectedExpenses,
     required this.jarSpent,
     required this.totalIncome,
+    required this.trackingDaysElapsed,
   });
 
   @override
   Widget build(BuildContext context) {
     final sorted = List<ExpectedExpense>.from(expectedExpenses)
       ..sort((a, b) => b.amount.compareTo(a.amount));
-
-    final now = DateTime.now();
-    final firstDay = DateTime(now.year, now.month, 1);
-    final daysElapsed = now.difference(firstDay).inDays + 1;
 
     return SizedBox(
       height: 150,
@@ -34,28 +32,31 @@ class JarRowWidget extends StatelessWidget {
         itemBuilder: (context, index) {
           final exp = sorted[index];
           final key = exp.title.toLowerCase();
-          final double plannedAmount = exp.amount; // stored amount (per period)
+          final double plannedAmount = exp.amount;
           final double actualSpent = jarSpent[key] ?? 0.0;
 
-          // Determine over/under ratio based on frequency
           double overBudgetRatio = 1.0;
+          double? actualAverage; // average per day since tracking started
+
           switch (exp.frequency) {
             case 'daily':
-              final plannedDaily = plannedAmount;
-              final actualDaily = actualSpent / daysElapsed;
-              overBudgetRatio =
-                  plannedDaily > 0 ? actualDaily / plannedDaily : 1.0;
+              actualAverage = trackingDaysElapsed > 0
+                  ? actualSpent / trackingDaysElapsed
+                  : null;
+              overBudgetRatio = (plannedAmount > 0 && actualAverage != null)
+                  ? actualAverage / plannedAmount
+                  : 1.0;
               break;
             case 'weekly':
-              final weeksElapsed = (daysElapsed / 7).ceil();
-              final plannedWeekly = plannedAmount;
-              final actualWeekly =
-                  weeksElapsed > 0 ? actualSpent / weeksElapsed : 0;
-              overBudgetRatio =
-                  plannedWeekly > 0 ? actualWeekly / plannedWeekly : 1.0;
+              final weeksElapsed = (trackingDaysElapsed / 7).ceil();
+              actualAverage =
+                  weeksElapsed > 0 ? actualSpent / weeksElapsed : null;
+              overBudgetRatio = (plannedAmount > 0 && actualAverage != null)
+                  ? actualAverage / plannedAmount
+                  : 1.0;
               break;
             case 'monthly':
-              // Compare total spent so far to planned monthly amount
+              actualAverage = null; // no daily average for monthly
               overBudgetRatio =
                   plannedAmount > 0 ? actualSpent / plannedAmount : 1.0;
               break;
@@ -70,6 +71,7 @@ class JarRowWidget extends StatelessWidget {
               frequency: exp.frequency,
               color: _colorForTitle(exp.title),
               overBudgetRatio: overBudgetRatio,
+              actualAverage: actualAverage, // NEW
             ),
           );
         },

@@ -19,6 +19,7 @@ import '../../../core/utils/emotional_messages.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../slip_up/slip_up_screen.dart';
 import '../what_if/what_if_screen.dart';
+import 'dart:math';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -47,11 +48,13 @@ class HomeScreen extends ConsumerWidget {
     final daysSinceSlipUp = daysSinceSlipUpAsync.valueOrNull;
     final milestone = milestoneAsync.valueOrNull;
 
-    // ---- Totals (income, actual spending) ----
+    // ---- Totals ----
     double totalIncome = 0;
     double totalSpent = 0;
     final Map<String, double> jarSpent = {};
 
+    // Also track earliest transaction date to determine tracking start
+    DateTime? earliestDate;
     for (final t in transactions) {
       if (t.type == 'income') {
         totalIncome += t.amount;
@@ -60,6 +63,9 @@ class HomeScreen extends ConsumerWidget {
         final jar = t.jar.toLowerCase();
         jarSpent[jar] = (jarSpent[jar] ?? 0) + t.amount;
       }
+      if (earliestDate == null || t.date.isBefore(earliestDate)) {
+        earliestDate = t.date;
+      }
     }
 
     double leftAmount = totalIncome - totalSpent;
@@ -67,11 +73,16 @@ class HomeScreen extends ConsumerWidget {
 
     // ---- Time helpers ----
     final now = DateTime.now();
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
     final firstDay = DateTime(now.year, now.month, 1);
-    final daysElapsed = now.difference(firstDay).inDays + 1;
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
 
-    // ---- Planned monthly allocations (from fixed expected expenses) ----
+    // Tracking start date: earliest transaction, or if none, today
+    final DateTime trackingStartDate = earliestDate ?? now;
+    // Days elapsed since tracking began (at least 1)
+    final int trackingDaysElapsed =
+        max(1, now.difference(trackingStartDate).inDays + 1);
+
+    // ---- Planned monthly allocations ----
     double plannedMonthlyTotal = 0;
     for (final exp in expectedExpenses) {
       switch (exp.frequency) {
@@ -87,7 +98,6 @@ class HomeScreen extends ConsumerWidget {
       }
     }
 
-    // Free money after planned allocations
     double freeMoney = totalIncome - plannedMonthlyTotal;
     if (freeMoney < 0) freeMoney = 0;
 
@@ -96,17 +106,17 @@ class HomeScreen extends ConsumerWidget {
     final double dailyAllowance =
         (freeMoney <= 0 || daysLeft <= 0) ? 0.0 : freeMoney / daysLeft;
 
-    // ---- Overspent analysis (for daily/weekly only) ----
+    // ---- Overspent analysis (using tracking days) ----
     String? mostOverspentCategory;
     double maxOverRatio = 1.0;
     for (final exp in expectedExpenses) {
-      if (exp.frequency == 'monthly') continue; // skip fixed expenses
+      if (exp.frequency == 'monthly') continue;
       final key = exp.title.toLowerCase();
-      final plannedDaily = (exp.frequency == 'daily')
-          ? exp.amount
-          : exp.amount / 7; // weekly → daily rate
+      final plannedDaily =
+          (exp.frequency == 'daily') ? exp.amount : exp.amount / 7;
       final actualSpent = jarSpent[key] ?? 0;
-      final actualDaily = actualSpent / daysElapsed;
+      final actualDaily =
+          trackingDaysElapsed > 0 ? actualSpent / trackingDaysElapsed : 0;
       if (plannedDaily > 0) {
         final ratio = actualDaily / plannedDaily;
         if (ratio > maxOverRatio) {
@@ -186,6 +196,7 @@ class HomeScreen extends ConsumerWidget {
                     expectedExpenses: expectedExpenses,
                     jarSpent: jarSpent,
                     totalIncome: totalIncome,
+                    trackingDaysElapsed: trackingDaysElapsed,
                   ),
                   const SizedBox(height: 24),
                   const GoalsPreview(),

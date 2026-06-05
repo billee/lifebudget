@@ -8,7 +8,8 @@ class JarCardWidget extends StatelessWidget {
   final double plannedAmount;
   final String frequency;
   final Color color;
-  final double overBudgetRatio; // actual / planned
+  final double overBudgetRatio;
+  final double? actualAverage; // NEW: average actual spend per period
 
   const JarCardWidget({
     super.key,
@@ -18,13 +19,13 @@ class JarCardWidget extends StatelessWidget {
     required this.frequency,
     required this.color,
     this.overBudgetRatio = 1.0,
+    this.actualAverage,
   });
 
   @override
   Widget build(BuildContext context) {
     final frequencyLabel = frequency[0].toUpperCase() + frequency.substring(1);
 
-    // Status label based on ratio
     String statusLabel;
     Color statusColor;
     if (overBudgetRatio > 1.5) {
@@ -71,7 +72,7 @@ class JarCardWidget extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            // Show the planned amount (not actual)
+            // Planned amount
             Text(
               formatAmount(plannedAmount),
               style: const TextStyle(
@@ -80,6 +81,17 @@ class JarCardWidget extends StatelessWidget {
                 color: AppColors.textPrimary,
               ),
             ),
+            // Actual average (if spending exists)
+            if (actualAverage != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                'Avg: ${formatAmount(actualAverage!)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
