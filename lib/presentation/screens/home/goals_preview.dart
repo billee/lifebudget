@@ -24,7 +24,7 @@ class GoalsPreview extends ConsumerWidget {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             SizedBox(
-              height: 120,
+              height: 150, // enough room for all content
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: activeGoals.length,
@@ -33,9 +33,7 @@ class GoalsPreview extends ConsumerWidget {
                   final goal = activeGoals[index];
                   final progress = goal.progressPercent;
                   return GestureDetector(
-                    onTap: () {
-                      // Navigate to goals tab? Optional.
-                    },
+                    onTap: () {},
                     child: Container(
                       width: 160,
                       padding: const EdgeInsets.all(12),
@@ -49,7 +47,7 @@ class GoalsPreview extends ConsumerWidget {
                           Row(
                             children: [
                               Text(goal.emoji,
-                                  style: const TextStyle(fontSize: 24)),
+                                  style: const TextStyle(fontSize: 22)),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(goal.title,
@@ -60,11 +58,17 @@ class GoalsPreview extends ConsumerWidget {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           Text(
-                            '${formatAmount(goal.dailyAmount)}/day',
+                            'Save ${formatAmount(goal.dailyAmount)}/day',
                             style: const TextStyle(
-                                fontSize: 12, color: AppColors.textSecondary),
+                                fontSize: 11, color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Target: ${formatAmount(goal.targetAmount)}',
+                            style: const TextStyle(
+                                fontSize: 11, color: AppColors.textSecondary),
                           ),
                           const SizedBox(height: 4),
                           ClipRRect(
@@ -81,7 +85,7 @@ class GoalsPreview extends ConsumerWidget {
                           Text(
                             '${formatAmount(goal.currentAmount)} / ${formatAmount(goal.targetAmount)}',
                             style: const TextStyle(
-                                fontSize: 12, color: AppColors.textSecondary),
+                                fontSize: 11, color: AppColors.textSecondary),
                           ),
                         ],
                       ),

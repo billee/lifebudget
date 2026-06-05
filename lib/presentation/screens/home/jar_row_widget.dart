@@ -87,14 +87,17 @@ class JarRowWidget extends StatelessWidget {
               displayedAmount = plannedAmount;
           }
 
-          return JarCardWidget(
-            icon: _iconForFrequency(exp.frequency),
-            name: exp.title,
-            plannedAmount: exp.amount,
-            frequency: exp.frequency,
-            actualAmount: displayedAmount,
-            color: _colorForTitle(exp.title),
-            overBudgetRatio: overBudgetRatio,
+          return SizedBox(
+            height: 150,
+            child: JarCardWidget(
+              icon: _iconForFrequency(exp.frequency),
+              name: exp.title,
+              plannedAmount: exp.amount,
+              frequency: exp.frequency,
+              actualAmount: displayedAmount,
+              color: _colorForTitle(exp.title),
+              overBudgetRatio: overBudgetRatio,
+            ),
           );
         },
       ),

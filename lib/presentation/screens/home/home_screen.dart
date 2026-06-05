@@ -17,6 +17,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/emotional_messages.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../slip_up/slip_up_screen.dart';
+import '../what_if/what_if_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -261,6 +262,22 @@ class HomeScreen extends ConsumerWidget {
                         },
                         child: const Text(
                           "Had a rough day? It's okay.",
+                          style: TextStyle(
+                              color: AppColors.textSecondary, fontSize: 14),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const WhatIfScreen()),
+                          );
+                        },
+                        child: const Text(
+                          "What if I saved a little?",
                           style: TextStyle(
                               color: AppColors.textSecondary, fontSize: 14),
                         ),
