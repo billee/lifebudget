@@ -17,14 +17,18 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path,
-        version: 3, onCreate: _createDB, onUpgrade: _upgradeDB);
+    return await openDatabase(
+      path,
+      version: 3, // <--- bump version every time schema changes
+      onCreate: _createDB,
+      onUpgrade: _upgradeDB,
+    );
   }
 
   Future<void> _createDB(Database db, int version) async {
-    // Create transactions table (unchanged)
+    // Use IF NOT EXISTS to avoid errors when table already exists
     await db.execute('''
-      CREATE TABLE ${DatabaseConstants.transactionsTable} (
+      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.transactionsTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
         ${DatabaseConstants.colType} TEXT NOT NULL,
         ${DatabaseConstants.colJar} TEXT NOT NULL,
@@ -34,19 +38,8 @@ class DatabaseHelper {
       )
     ''');
 
-    // Create jar_allocations table with percentage
     await db.execute('''
-      CREATE TABLE ${DatabaseConstants.jarAllocationsTable} (
-        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
-        ${DatabaseConstants.colMonth} TEXT NOT NULL,
-        ${DatabaseConstants.colJarName} TEXT NOT NULL,
-        ${DatabaseConstants.colPercentage} REAL NOT NULL,
-        UNIQUE(${DatabaseConstants.colMonth}, ${DatabaseConstants.colJarName})
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE ${DatabaseConstants.expectedExpensesTable} (
+      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.expectedExpensesTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         frequency TEXT NOT NULL,
@@ -56,7 +49,7 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-      CREATE TABLE ${DatabaseConstants.slipUpsTable} (
+      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.slipUpsTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL,
         amount REAL,
@@ -66,7 +59,7 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-      CREATE TABLE ${DatabaseConstants.archivedTransactionsTable} (
+      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.archivedTransactionsTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
         ${DatabaseConstants.colType} TEXT NOT NULL,
         ${DatabaseConstants.colJar} TEXT NOT NULL,
@@ -78,7 +71,7 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-      CREATE TABLE ${DatabaseConstants.journalTable} (
+      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.journalTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL,
         mood TEXT NOT NULL,
@@ -88,11 +81,12 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-      CREATE TABLE ${DatabaseConstants.goalsTable} (
+      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.goalsTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         target_amount REAL NOT NULL,
         current_amount REAL NOT NULL DEFAULT 0,
+        daily_amount REAL NOT NULL DEFAULT 0,
         emoji TEXT NOT NULL,
         is_completed INTEGER NOT NULL DEFAULT 0,
         created_date TEXT NOT NULL
@@ -101,16 +95,19 @@ class DatabaseHelper {
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 3) {
-      await db.execute('''
-      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.expectedExpensesTable} (
-        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        frequency TEXT NOT NULL,
-        amount REAL NOT NULL,
-        month TEXT NOT NULL
-      )
-    ''');
+    // For development simplicity, drop all tables and recreate.
+    // In production you'd write proper migrations.
+    final tables = [
+      DatabaseConstants.transactionsTable,
+      DatabaseConstants.expectedExpensesTable,
+      DatabaseConstants.slipUpsTable,
+      DatabaseConstants.archivedTransactionsTable,
+      DatabaseConstants.journalTable,
+      DatabaseConstants.goalsTable,
+    ];
+    for (final table in tables) {
+      await db.execute('DROP TABLE IF EXISTS $table');
     }
+    await _createDB(db, newVersion);
   }
 }

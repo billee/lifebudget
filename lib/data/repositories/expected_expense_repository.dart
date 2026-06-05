@@ -40,4 +40,13 @@ class ExpectedExpenseRepository {
       whereArgs: [id],
     );
   }
+
+  Future<void> deleteByTitle(String title) async {
+    final db = await _dbHelper.database;
+    await db.delete(
+      DatabaseConstants.expectedExpensesTable,
+      where: 'title = ?',
+      whereArgs: [title],
+    );
+  }
 }

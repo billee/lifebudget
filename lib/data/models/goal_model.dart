@@ -3,6 +3,7 @@ class Goal {
   final String title;
   final double targetAmount;
   final double currentAmount;
+  final double dailyAmount; // NEW
   final String emoji;
   final bool isCompleted;
   final DateTime createdDate;
@@ -12,6 +13,7 @@ class Goal {
     required this.title,
     required this.targetAmount,
     required this.currentAmount,
+    required this.dailyAmount,
     required this.emoji,
     required this.isCompleted,
     required this.createdDate,
@@ -25,6 +27,7 @@ class Goal {
     String? title,
     double? targetAmount,
     double? currentAmount,
+    double? dailyAmount,
     String? emoji,
     bool? isCompleted,
     DateTime? createdDate,
@@ -34,6 +37,7 @@ class Goal {
       title: title ?? this.title,
       targetAmount: targetAmount ?? this.targetAmount,
       currentAmount: currentAmount ?? this.currentAmount,
+      dailyAmount: dailyAmount ?? this.dailyAmount,
       emoji: emoji ?? this.emoji,
       isCompleted: isCompleted ?? this.isCompleted,
       createdDate: createdDate ?? this.createdDate,
@@ -45,6 +49,7 @@ class Goal {
       'title': title,
       'target_amount': targetAmount,
       'current_amount': currentAmount,
+      'daily_amount': dailyAmount,
       'emoji': emoji,
       'is_completed': isCompleted ? 1 : 0,
       'created_date': createdDate.toIso8601String(),
@@ -57,6 +62,7 @@ class Goal {
       title: map['title'] as String,
       targetAmount: (map['target_amount'] as num).toDouble(),
       currentAmount: (map['current_amount'] as num).toDouble(),
+      dailyAmount: (map['daily_amount'] as num?)?.toDouble() ?? 0.0,
       emoji: map['emoji'] as String,
       isCompleted: (map['is_completed'] as int) == 1,
       createdDate: DateTime.parse(map['created_date'] as String),

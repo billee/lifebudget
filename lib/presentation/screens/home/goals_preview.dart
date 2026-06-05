@@ -24,7 +24,7 @@ class GoalsPreview extends ConsumerWidget {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             SizedBox(
-              height: 110,
+              height: 120,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: activeGoals.length,
@@ -34,10 +34,10 @@ class GoalsPreview extends ConsumerWidget {
                   final progress = goal.progressPercent;
                   return GestureDetector(
                     onTap: () {
-                      // Navigate to Goals tab? For now just show a dialog.
+                      // Navigate to goals tab? Optional.
                     },
                     child: Container(
-                      width: 150,
+                      width: 160,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: AppColors.cardBackground,
@@ -61,6 +61,12 @@ class GoalsPreview extends ConsumerWidget {
                             ],
                           ),
                           const SizedBox(height: 8),
+                          Text(
+                            '${formatAmount(goal.dailyAmount)}/day',
+                            style: const TextStyle(
+                                fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 4),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(4),
                             child: LinearProgressIndicator(

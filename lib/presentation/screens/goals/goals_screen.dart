@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../data/models/goal_model.dart';
+import '../../../data/models/expected_expense_model.dart';
+import '../../../data/models/transaction_model.dart';
 import '../../providers/goal_provider.dart';
+import '../../providers/expected_expenses_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../widgets/common/lifebudget_scaffold.dart';
 import 'goal_celebrate_screen.dart';
-import '../../providers/transaction_provider.dart';
-import '../../../data/models/transaction_model.dart';
 
 class GoalsScreen extends ConsumerStatefulWidget {
   const GoalsScreen({super.key});
@@ -19,6 +21,7 @@ class GoalsScreen extends ConsumerStatefulWidget {
 class _GoalsScreenState extends ConsumerState<GoalsScreen> {
   final _titleController = TextEditingController();
   final _targetController = TextEditingController();
+  final _dailyController = TextEditingController();
   String _selectedEmoji = '💰';
   int? _editingId;
 
@@ -39,55 +42,57 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
   void dispose() {
     _titleController.dispose();
     _targetController.dispose();
+    _dailyController.dispose();
     super.dispose();
   }
 
   void _clearForm() {
     _titleController.clear();
     _targetController.clear();
+    _dailyController.clear();
     setState(() {
       _selectedEmoji = '💰';
       _editingId = null;
     });
   }
 
-  Future<void> _save() async {
-    final title = _titleController.text.trim();
-    final targetText = _targetController.text.trim();
-    if (title.isEmpty || targetText.isEmpty) return;
-    final target = double.tryParse(targetText);
-    if (target == null || target <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid amount')),
-      );
-      return;
-    }
+  double _computeDailyAllowance() {
+    final transactions = ref.read(allTransactionsProvider).valueOrNull ?? [];
+    final expectedExpenses =
+        ref.read(expectedExpensesProvider).valueOrNull ?? [];
 
-    final repo = ref.read(goalRepositoryProvider);
-    if (_editingId == null) {
-      final goal = Goal(
-        title: title,
-        targetAmount: target,
-        currentAmount: 0,
-        emoji: _selectedEmoji,
-        isCompleted: false,
-        createdDate: DateTime.now(),
-      );
-      await repo.insert(goal);
-    } else {
-      final existingGoal = await _getGoal(_editingId!);
-      if (existingGoal != null) {
-        final updated = existingGoal.copyWith(
-          title: title,
-          targetAmount: target,
-          emoji: _selectedEmoji,
-        );
-        await repo.update(updated);
+    double income = 0;
+    double spent = 0;
+    for (final t in transactions) {
+      if (t.type == 'income') {
+        income += t.amount;
+      } else {
+        spent += t.amount;
       }
     }
 
-    ref.invalidate(goalsProvider);
-    _clearForm();
+    final now = DateTime.now();
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    double allocated = 0;
+    for (final exp in expectedExpenses) {
+      switch (exp.frequency) {
+        case 'daily':
+          allocated += exp.amount * daysInMonth;
+          break;
+        case 'weekly':
+          allocated += exp.amount * (daysInMonth / 7);
+          break;
+        case 'monthly':
+          allocated += exp.amount;
+          break;
+      }
+    }
+
+    double free = income - allocated;
+    if (free < 0) free = 0;
+    final daysLeft =
+        DateTime(now.year, now.month + 1, 0).difference(now).inDays + 1;
+    return daysLeft > 0 ? free / daysLeft : free;
   }
 
   Future<Goal?> _getGoal(int id) async {
@@ -97,16 +102,128 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
         .firstWhere((g) => g!.id == id, orElse: () => null);
   }
 
+  Future<void> _save() async {
+    final title = _titleController.text.trim();
+    final targetText = _targetController.text.trim();
+    final dailyText = _dailyController.text.trim();
+
+    if (title.isEmpty || targetText.isEmpty || dailyText.isEmpty) return;
+    final target = double.tryParse(targetText);
+    final dailyAmount = double.tryParse(dailyText);
+    if (target == null ||
+        dailyAmount == null ||
+        target <= 0 ||
+        dailyAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter valid amounts')),
+      );
+      return;
+    }
+
+    final allowance = _computeDailyAllowance();
+    if (dailyAmount > allowance) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Daily save (${formatAmount(dailyAmount)}) cannot exceed your safe spend (${formatAmount(allowance)})'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    final goalRepo = ref.read(goalRepositoryProvider);
+    final expectedRepo = ref.read(expectedExpenseRepositoryProvider);
+    final transactionRepo = ref.read(transactionRepositoryProvider);
+    final month =
+        '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
+
+    if (_editingId == null) {
+      final goal = Goal(
+        title: title,
+        targetAmount: target,
+        currentAmount: dailyAmount,
+        dailyAmount: dailyAmount,
+        emoji: _selectedEmoji,
+        isCompleted: dailyAmount >= target,
+        createdDate: DateTime.now(),
+      );
+      await goalRepo.insert(goal);
+
+      final expectedExpense = ExpectedExpense(
+        title: title,
+        frequency: 'daily',
+        amount: dailyAmount,
+        month: month,
+      );
+      await expectedRepo.insert(expectedExpense);
+
+      final transaction = TransactionModel(
+        type: 'savings',
+        jar: 'goal_${title.toLowerCase()}',
+        amount: dailyAmount,
+        date: DateTime.now(),
+        note: 'Daily savings toward $title',
+      );
+      await transactionRepo.insertTransaction(transaction);
+
+      if (goal.isCompleted && mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => GoalCelebrateScreen(
+            goalTitle: title,
+            emoji: _selectedEmoji,
+          ),
+        );
+      }
+    } else {
+      final existingGoal = await _getGoal(_editingId!);
+      if (existingGoal != null) {
+        final updated = existingGoal.copyWith(
+          title: title,
+          targetAmount: target,
+          dailyAmount: dailyAmount,
+          emoji: _selectedEmoji,
+        );
+        await goalRepo.update(updated);
+
+        // Replace expected expense
+        await expectedRepo.deleteByTitle(updated.title);
+        await expectedRepo.insert(ExpectedExpense(
+          title: updated.title,
+          frequency: 'daily',
+          amount: dailyAmount,
+          month: month,
+        ));
+      }
+    }
+
+    ref.invalidate(goalsProvider);
+    ref.invalidate(expectedExpensesProvider);
+    ref.invalidate(allTransactionsProvider);
+    ref.invalidate(jarSummariesProvider);
+
+    _clearForm();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Goal created! Daily savings added to your budget.'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+    }
+  }
+
   Future<void> _addMoney(Goal goal) async {
     final controller = TextEditingController();
     final amount = await showDialog<double>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add to goal'),
+        title: const Text('Add extra savings'),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(hintText: 'Amount to save'),
+          decoration: const InputDecoration(hintText: 'Amount'),
         ),
         actions: [
           TextButton(
@@ -132,18 +249,15 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
       final goalRepo = ref.read(goalRepositoryProvider);
       await goalRepo.update(updated);
 
-      // ---- Create a savings transaction ----
       final transactionRepo = ref.read(transactionRepositoryProvider);
-      final transaction = TransactionModel(
-        type: 'savings', // new type
+      await transactionRepo.insertTransaction(TransactionModel(
+        type: 'savings',
         jar: 'goal_${goal.title.toLowerCase()}',
         amount: amount,
         date: DateTime.now(),
-        note: 'Saved toward ${goal.title}',
-      );
-      await transactionRepo.insertTransaction(transaction);
+        note: 'Extra savings for ${goal.title}',
+      ));
 
-      // Invalidate providers so home screen refreshes
       ref.invalidate(goalsProvider);
       ref.invalidate(allTransactionsProvider);
       ref.invalidate(jarSummariesProvider);
@@ -165,6 +279,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
       _editingId = goal.id;
       _titleController.text = goal.title;
       _targetController.text = goal.targetAmount.toStringAsFixed(0);
+      _dailyController.text = goal.dailyAmount.toStringAsFixed(0);
       _selectedEmoji = goal.emoji;
     });
   }
@@ -190,7 +305,6 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Form ---
             Text(
               _editingId == null ? 'Create a Goal' : 'Edit Goal',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -198,10 +312,10 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
             const SizedBox(height: 12),
             TextField(
               controller: _titleController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'What do you want to save for?',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12))),
                 filled: true,
                 fillColor: Colors.white,
               ),
@@ -210,16 +324,28 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
             TextField(
               controller: _targetController,
               keyboardType: TextInputType.number,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Target amount',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12))),
                 filled: true,
                 fillColor: Colors.white,
               ),
             ),
             const SizedBox(height: 12),
-            // Emoji picker
+            TextField(
+              controller: _dailyController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Save per day',
+                hintText: 'Less than your safe daily spend',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12))),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 12),
             const Text('Choose an icon:'),
             const SizedBox(height: 8),
             Wrap(
@@ -262,8 +388,6 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 16),
-
-            // --- Goal List ---
             const Text('Your Goals',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
@@ -299,10 +423,22 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                                     style: const TextStyle(fontSize: 32)),
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: Text(goal.title,
-                                      style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold)),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(goal.title,
+                                          style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold)),
+                                      Text(
+                                        'Save ${formatAmount(goal.dailyAmount)}/day',
+                                        style: const TextStyle(
+                                            fontSize: 13,
+                                            color: AppColors.textSecondary),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.edit,
@@ -317,17 +453,14 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            // Progress bar
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: LinearProgressIndicator(
                                 value: progress.clamp(0.0, 1.0),
                                 minHeight: 12,
                                 backgroundColor: Colors.grey[200],
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    goal.isCompleted
-                                        ? AppColors.onTrack
-                                        : AppColors.primary),
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                    AppColors.primary),
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -342,7 +475,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                                   ElevatedButton.icon(
                                     onPressed: () => _addMoney(goal),
                                     icon: const Icon(Icons.add, size: 18),
-                                    label: const Text('Add'),
+                                    label: const Text('Add Extra'),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppColors.primary,
                                       foregroundColor: Colors.white,
