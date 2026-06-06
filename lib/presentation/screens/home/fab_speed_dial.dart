@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_strings.dart';
 import '../../screens/transactions/log_expense_screen.dart';
 import '../../screens/transactions/log_income_screen.dart';
 
@@ -52,28 +50,16 @@ class _FabSpeedDialState extends State<FabSpeedDial>
       children: [
         if (_expanded) ...[
           _MiniFAB(
-            icon: Icons.camera_alt_outlined,
-            label: 'Scan receipt',
-            onTap: () {
-              _toggle();
-              // Placeholder: show coming soon snackbar
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Scan receipt coming soon!')),
-              );
-            },
-          ),
-          const SizedBox(height: 8),
-          _MiniFAB(
             icon: Icons.edit_note_rounded,
             label: 'Log expense',
             onTap: () {
-              _toggle(); // collapse first
+              _toggle();
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const LogExpenseScreen()),
               );
             },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           _MiniFAB(
             icon: Icons.add_rounded,
             label: 'Add income',
@@ -84,7 +70,7 @@ class _FabSpeedDialState extends State<FabSpeedDial>
               );
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
         ],
         GestureDetector(
           onTap: _toggle,
@@ -93,23 +79,23 @@ class _FabSpeedDialState extends State<FabSpeedDial>
             builder: (context, child) => Transform.rotate(
               angle: _rotate.value * 2 * 3.141592,
               child: Container(
-                width: 60,
-                height: 60,
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black26,
-                      blurRadius: 8,
-                      offset: Offset(0, 4),
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),
                 child: Icon(
                   _expanded ? Icons.close : Icons.add,
                   color: Colors.white,
-                  size: 28,
+                  size: 18,
                 ),
               ),
             ),
@@ -132,10 +118,10 @@ class _MiniFAB extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.08),
@@ -150,12 +136,12 @@ class _MiniFAB extends StatelessWidget {
             Text(
               label,
               style: const TextStyle(
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary),
             ),
             const SizedBox(width: 8),
-            Icon(icon, size: 20, color: AppColors.primary),
+            Icon(icon, size: 16, color: AppColors.primary),
           ],
         ),
       ),

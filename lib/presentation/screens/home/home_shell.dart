@@ -14,9 +14,8 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
-  double _fabBottomOffset = 90.0;
-  static const double _minOffset = 70.0;
-  static const double _maxOffset = 250.0;
+  double _fabOffsetX = 20;
+  double _fabOffsetY = 90;
 
   void _onTap(int index) {
     widget.navigationShell.goBranch(
@@ -32,14 +31,18 @@ class _HomeShellState extends State<HomeShell> {
         children: [
           widget.navigationShell,
           Positioned(
-            right: 20,
-            bottom: _fabBottomOffset,
+            right: _fabOffsetX,
+            bottom: _fabOffsetY,
             child: GestureDetector(
-              onVerticalDragUpdate: (details) {
+              onPanUpdate: (details) {
                 setState(() {
-                  _fabBottomOffset -= details.delta.dy;
-                  _fabBottomOffset =
-                      _fabBottomOffset.clamp(_minOffset, _maxOffset);
+                  _fabOffsetX -= details.delta.dx;
+                  _fabOffsetY -= details.delta.dy;
+                  // Clamp within screen bounds
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  final screenHeight = MediaQuery.of(context).size.height;
+                  _fabOffsetX = _fabOffsetX.clamp(8, screenWidth - 50);
+                  _fabOffsetY = _fabOffsetY.clamp(8, screenHeight - 120);
                 });
               },
               child: const FabSpeedDial(),
