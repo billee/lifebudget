@@ -274,9 +274,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 if (_editingId != null) ...[
                   const SizedBox(width: 12),
                   TextButton(
-                    onPressed: _clearForm,
-                    child: const Text('Cancel'),
-                  ),
+                      onPressed: _clearForm, child: const Text('Cancel')),
                 ],
               ],
             ),
@@ -354,7 +352,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Reminder settings (using Consumer to watch the provider)
             Consumer(
               builder: (context, ref, _) {
                 final settings = ref.watch(reminderSettingsProvider);
@@ -395,6 +392,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           }
                         },
                       ),
+                    const SizedBox(height: 16),
+
+                    // --- Survival Mode Toggle ---
+                    SwitchListTile(
+                      title: const Text('Survival Budget Mode'),
+                      subtitle: const Text(
+                          'Show only essentials – food, transport, rent, utilities'),
+                      value: settings.survivalMode,
+                      onChanged: (val) {
+                        ref
+                            .read(reminderSettingsProvider.notifier)
+                            .setSurvivalMode(val);
+                      },
+                      activeColor: AppColors.primary,
+                    ),
                   ],
                 );
               },

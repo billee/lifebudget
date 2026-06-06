@@ -5,13 +5,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ReminderSettings {
   final bool enabled;
   final TimeOfDay time;
+  final bool survivalMode;
 
-  const ReminderSettings({required this.enabled, required this.time});
+  const ReminderSettings({
+    required this.enabled,
+    required this.time,
+    this.survivalMode = false,
+  });
 
-  ReminderSettings copyWith({bool? enabled, TimeOfDay? time}) {
+  ReminderSettings copyWith({
+    bool? enabled,
+    TimeOfDay? time,
+    bool? survivalMode,
+  }) {
     return ReminderSettings(
       enabled: enabled ?? this.enabled,
       time: time ?? this.time,
+      survivalMode: survivalMode ?? this.survivalMode,
     );
   }
 }
@@ -33,9 +43,11 @@ class ReminderSettingsNotifier extends StateNotifier<ReminderSettings> {
     final enabled = prefs.getBool('reminder_enabled') ?? false;
     final hour = prefs.getInt('reminder_hour') ?? 20;
     final minute = prefs.getInt('reminder_minute') ?? 0;
+    final survival = prefs.getBool('survival_mode') ?? false;
     state = ReminderSettings(
       enabled: enabled,
       time: TimeOfDay(hour: hour, minute: minute),
+      survivalMode: survival,
     );
   }
 
@@ -50,5 +62,11 @@ class ReminderSettingsNotifier extends StateNotifier<ReminderSettings> {
     await prefs.setInt('reminder_hour', time.hour);
     await prefs.setInt('reminder_minute', time.minute);
     state = state.copyWith(time: time);
+  }
+
+  Future<void> setSurvivalMode(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('survival_mode', value);
+    state = state.copyWith(survivalMode: value);
   }
 }

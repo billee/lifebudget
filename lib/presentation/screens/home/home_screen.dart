@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,12 +15,12 @@ import '../../providers/expected_expenses_provider.dart';
 import '../../providers/slip_up_provider.dart';
 import '../../providers/milestone_provider.dart';
 import '../../providers/goal_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/emotional_messages.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../slip_up/slip_up_screen.dart';
 import '../what_if/what_if_screen.dart';
-import 'dart:math';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -48,13 +49,16 @@ class HomeScreen extends ConsumerWidget {
     final daysSinceSlipUp = daysSinceSlipUpAsync.valueOrNull;
     final milestone = milestoneAsync.valueOrNull;
 
+    // ---- Survival Mode ----
+    final settings = ref.watch(reminderSettingsProvider);
+    final survivalMode = settings.survivalMode;
+
     // ---- Totals ----
     double totalIncome = 0;
     double totalSpent = 0;
     final Map<String, double> jarSpent = {};
-
-    // Also track earliest transaction date to determine tracking start
     DateTime? earliestDate;
+
     for (final t in transactions) {
       if (t.type == 'income') {
         totalIncome += t.amount;
@@ -71,20 +75,25 @@ class HomeScreen extends ConsumerWidget {
     double leftAmount = totalIncome - totalSpent;
     if (leftAmount < 0) leftAmount = 0;
 
-    // ---- Time helpers ----
     final now = DateTime.now();
-    final firstDay = DateTime(now.year, now.month, 1);
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
 
-    // Tracking start date: earliest transaction, or if none, today
+    // Tracking days
     final DateTime trackingStartDate = earliestDate ?? now;
-    // Days elapsed since tracking began (at least 1)
     final int trackingDaysElapsed =
         max(1, now.difference(trackingStartDate).inDays + 1);
 
-    // ---- Planned monthly allocations ----
+    // ---- Planned allocations (monthly) ----
+    final workingList = survivalMode
+        ? expectedExpenses
+            .where((e) => ['food', 'transport', 'rent', 'utilities']
+                .contains(e.title.toLowerCase()))
+            .toList()
+        : expectedExpenses;
+
     double plannedMonthlyTotal = 0;
     for (final exp in expectedExpenses) {
+      // planned total is always based on full list, survival doesn't change the math
       switch (exp.frequency) {
         case 'daily':
           plannedMonthlyTotal += exp.amount * daysInMonth;
@@ -127,23 +136,25 @@ class HomeScreen extends ConsumerWidget {
     }
     final bool isOverBudget = maxOverRatio > 1.0;
 
-    // ---- Nearest goal nudge ----
+    // ---- Nearest goal nudge (only in normal mode) ----
     String? nearestGoalMessage;
-    final goals = goalsAsync.valueOrNull ?? [];
-    if (goals.isNotEmpty) {
-      final incomplete = goals.where((g) => !g.isCompleted).toList();
-      if (incomplete.isNotEmpty) {
-        incomplete.sort((a, b) {
-          final remainingA = a.targetAmount - a.currentAmount;
-          final remainingB = b.targetAmount - b.currentAmount;
-          return remainingA.compareTo(remainingB);
-        });
-        final closest = incomplete.first;
-        final remaining = closest.targetAmount - closest.currentAmount;
-        if (remaining <= 500) {
-          nearestGoalMessage =
-              "You're ${formatAmount(remaining)} away from “${closest.title}”. "
-              "You're almost there!";
+    if (!survivalMode) {
+      final goals = goalsAsync.valueOrNull ?? [];
+      if (goals.isNotEmpty) {
+        final incomplete = goals.where((g) => !g.isCompleted).toList();
+        if (incomplete.isNotEmpty) {
+          incomplete.sort((a, b) {
+            final remainingA = a.targetAmount - a.currentAmount;
+            final remainingB = b.targetAmount - b.currentAmount;
+            return remainingA.compareTo(remainingB);
+          });
+          final closest = incomplete.first;
+          final remaining = closest.targetAmount - closest.currentAmount;
+          if (remaining <= 500) {
+            nearestGoalMessage =
+                "You're ${formatAmount(remaining)} away from “${closest.title}”. "
+                "You're almost there!";
+          }
         }
       }
     }
@@ -192,73 +203,73 @@ class HomeScreen extends ConsumerWidget {
                     daysLeft: daysLeft,
                   ),
                   const SizedBox(height: 16),
+                  // Jar row – survival mode shows essentials only
                   JarRowWidget(
-                    expectedExpenses: expectedExpenses,
+                    expectedExpenses: workingList,
                     jarSpent: jarSpent,
                     totalIncome: totalIncome,
                     trackingDaysElapsed: trackingDaysElapsed,
                   ),
-                  const SizedBox(height: 24),
-                  const GoalsPreview(),
-                  if (goals.any((g) => !g.isCompleted))
+                  if (!survivalMode) ...[
                     const SizedBox(height: 24),
-                  // ---- Insights ----
-                  const InsightsCardWidget(),
-                  const SizedBox(height: 24),
-                  // ---- Milestone or Focus Card ----
-                  if (milestone != null)
-                    CelebrationOverlay(
-                      milestone: milestone,
-                      onDismiss: () async {
-                        final prefs = await SharedPreferences.getInstance();
-                        final shown =
-                            prefs.getStringList('shown_milestones') ?? [];
-                        shown.add(milestone.id);
-                        await prefs.setStringList('shown_milestones', shown);
-                        ref.invalidate(newMilestoneProvider);
-                        ref.invalidate(shownMilestonesProvider);
-                      },
-                    )
-                  else ...[
-                    FocusCardWidget(
-                      dailyAllowance: dailyAllowance,
-                      daysLeft: daysLeft,
-                      daysSinceLastSlipUp: daysSinceSlipUp,
-                      overrideMessage: focusOverrideMessage,
-                      nearestGoalMessage: nearestGoalMessage,
-                    ),
-                    const SizedBox(height: 12),
-                    Center(
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => const SlipUpScreen()),
-                          );
+                    const GoalsPreview(),
+                    if (goalsAsync.valueOrNull?.any((g) => !g.isCompleted) ==
+                        true)
+                      const SizedBox(height: 24),
+                    if (milestone != null)
+                      CelebrationOverlay(
+                        milestone: milestone,
+                        onDismiss: () async {
+                          final prefs = await SharedPreferences.getInstance();
+                          final shown =
+                              prefs.getStringList('shown_milestones') ?? [];
+                          shown.add(milestone.id);
+                          await prefs.setStringList('shown_milestones', shown);
+                          ref.invalidate(newMilestoneProvider);
+                          ref.invalidate(shownMilestonesProvider);
                         },
-                        child: const Text(
-                          "Had a rough day? It's okay.",
-                          style: TextStyle(
-                              color: AppColors.textSecondary, fontSize: 14),
+                      )
+                    else ...[
+                      FocusCardWidget(
+                        dailyAllowance: dailyAllowance,
+                        daysLeft: daysLeft,
+                        daysSinceLastSlipUp: daysSinceSlipUp,
+                        overrideMessage: focusOverrideMessage,
+                        nearestGoalMessage: nearestGoalMessage,
+                      ),
+                      const SizedBox(height: 12),
+                      Center(
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => const SlipUpScreen()),
+                            );
+                          },
+                          child: const Text(
+                            "Had a rough day? It's okay.",
+                            style: TextStyle(
+                                color: AppColors.textSecondary, fontSize: 14),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Center(
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => const WhatIfScreen()),
-                          );
-                        },
-                        child: const Text(
-                          "What if I saved a little?",
-                          style: TextStyle(
-                              color: AppColors.textSecondary, fontSize: 14),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => const WhatIfScreen()),
+                            );
+                          },
+                          child: const Text(
+                            "What if I saved a little?",
+                            style: TextStyle(
+                                color: AppColors.textSecondary, fontSize: 14),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                   const SizedBox(height: 100),
                 ],
