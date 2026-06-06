@@ -8,7 +8,8 @@ class JarRowWidget extends StatelessWidget {
   final List<ExpectedExpense> expectedExpenses;
   final Map<String, double> jarSpent;
   final double totalIncome;
-  final int trackingDaysElapsed; // NEW
+  final int trackingDaysElapsed;
+  final double dailyAllowance;
 
   const JarRowWidget({
     super.key,
@@ -16,6 +17,7 @@ class JarRowWidget extends StatelessWidget {
     required this.jarSpent,
     required this.totalIncome,
     required this.trackingDaysElapsed,
+    required this.dailyAllowance,
   });
 
   @override
@@ -36,7 +38,8 @@ class JarRowWidget extends StatelessWidget {
           final double actualSpent = jarSpent[key] ?? 0.0;
 
           double overBudgetRatio = 1.0;
-          double? actualAverage; // average per day since tracking started
+          double? actualAverage;
+          String? monthlyStatus;
 
           switch (exp.frequency) {
             case 'daily':
@@ -56,9 +59,17 @@ class JarRowWidget extends StatelessWidget {
                   : 1.0;
               break;
             case 'monthly':
-              actualAverage = null; // no daily average for monthly
+              actualAverage = null;
               overBudgetRatio =
                   plannedAmount > 0 ? actualSpent / plannedAmount : 1.0;
+              // Determine monthly status
+              if (actualSpent >= plannedAmount && plannedAmount > 0) {
+                monthlyStatus = 'Paid';
+              } else if (dailyAllowance > 0) {
+                monthlyStatus = 'On track';
+              } else {
+                monthlyStatus = 'Unsure';
+              }
               break;
           }
 
@@ -71,7 +82,8 @@ class JarRowWidget extends StatelessWidget {
               frequency: exp.frequency,
               color: _colorForTitle(exp.title),
               overBudgetRatio: overBudgetRatio,
-              actualAverage: actualAverage, // NEW
+              actualAverage: actualAverage,
+              monthlyStatus: monthlyStatus,
             ),
           );
         },

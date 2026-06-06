@@ -215,6 +215,7 @@ class HomeScreen extends ConsumerWidget {
                     jarSpent: jarSpent,
                     totalIncome: totalIncome,
                     trackingDaysElapsed: trackingDaysElapsed,
+                    dailyAllowance: dailyAllowance,
                   ),
                   if (!survivalMode) ...[
                     const SizedBox(height: 24),

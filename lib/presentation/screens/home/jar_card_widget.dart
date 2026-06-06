@@ -9,7 +9,8 @@ class JarCardWidget extends StatelessWidget {
   final String frequency;
   final Color color;
   final double overBudgetRatio;
-  final double? actualAverage; // NEW: average actual spend per period
+  final double? actualAverage;
+  final String? monthlyStatus; // override status for monthly envelopes
 
   const JarCardWidget({
     super.key,
@@ -20,6 +21,7 @@ class JarCardWidget extends StatelessWidget {
     required this.color,
     this.overBudgetRatio = 1.0,
     this.actualAverage,
+    this.monthlyStatus,
   });
 
   @override
@@ -28,7 +30,21 @@ class JarCardWidget extends StatelessWidget {
 
     String statusLabel;
     Color statusColor;
-    if (overBudgetRatio > 1.5) {
+
+    if (monthlyStatus != null) {
+      // Monthly envelope: use explicit status
+      statusLabel = monthlyStatus!;
+      switch (monthlyStatus) {
+        case 'Paid':
+          statusColor = AppColors.onTrack;
+          break;
+        case 'On track':
+          statusColor = AppColors.primary;
+          break;
+        default: // 'Unsure'
+          statusColor = AppColors.warning;
+      }
+    } else if (overBudgetRatio > 1.5) {
       statusLabel = 'A lot over';
       statusColor = AppColors.critical;
     } else if (overBudgetRatio > 1.0) {
