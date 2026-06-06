@@ -54,17 +54,24 @@ class HomeScreen extends ConsumerWidget {
     final survivalMode = settings.survivalMode;
 
     // ---- Totals ----
+    final now = DateTime.now();
     double totalIncome = 0;
     double totalSpent = 0;
     final Map<String, double> jarSpent = {};
     DateTime? earliestDate;
+    final currentMonth = DateTime(now.year, now.month, 1);
 
     for (final t in transactions) {
+      // Only count current-month transactions for jar averages & totals
+      if (t.date.isBefore(currentMonth)) continue;
+
       if (t.type == 'income') {
         totalIncome += t.amount;
       } else {
         totalSpent += t.amount;
-        final jar = t.jar.toLowerCase();
+        var jar = t.jar.toLowerCase();
+        // Normalize legacy goal jar names: 'goal_tv' → 'tv'
+        if (jar.startsWith('goal_')) jar = jar.substring(5);
         jarSpent[jar] = (jarSpent[jar] ?? 0) + t.amount;
       }
       if (earliestDate == null || t.date.isBefore(earliestDate)) {
@@ -75,7 +82,6 @@ class HomeScreen extends ConsumerWidget {
     double leftAmount = totalIncome - totalSpent;
     if (leftAmount < 0) leftAmount = 0;
 
-    final now = DateTime.now();
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
 
     // Tracking days
@@ -216,6 +222,8 @@ class HomeScreen extends ConsumerWidget {
                     if (goalsAsync.valueOrNull?.any((g) => !g.isCompleted) ==
                         true)
                       const SizedBox(height: 24),
+                    const InsightsCardWidget(),
+                    const SizedBox(height: 24),
                     if (milestone != null)
                       CelebrationOverlay(
                         milestone: milestone,

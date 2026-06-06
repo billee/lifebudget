@@ -160,7 +160,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
 
       final transaction = TransactionModel(
         type: 'savings',
-        jar: 'goal_${title.toLowerCase()}',
+        jar: title.toLowerCase(),
         amount: dailyAmount,
         date: DateTime.now(),
         note: 'Daily savings toward $title',
@@ -252,7 +252,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
       final transactionRepo = ref.read(transactionRepositoryProvider);
       await transactionRepo.insertTransaction(TransactionModel(
         type: 'savings',
-        jar: 'goal_${goal.title.toLowerCase()}',
+        jar: goal.title.toLowerCase(),
         amount: amount,
         date: DateTime.now(),
         note: 'Extra savings for ${goal.title}',

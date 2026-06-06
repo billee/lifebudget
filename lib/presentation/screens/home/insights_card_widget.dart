@@ -13,7 +13,12 @@ class InsightsCardWidget extends ConsumerWidget {
 
     return insightsAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (err, _) => Container(
+        padding: const EdgeInsets.all(12),
+        color: Colors.red.withOpacity(0.1),
+        child:
+            Text('Insights error: $err', style: const TextStyle(fontSize: 11)),
+      ),
       data: (insights) {
         if (insights.isEmpty) return const SizedBox.shrink();
 

@@ -19,7 +19,7 @@ class DatabaseHelper {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 3, // <--- bump version every time schema changes
+      version: 4, // <--- bump version every time schema changes
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -104,19 +104,16 @@ class DatabaseHelper {
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
-    // For development simplicity, drop all tables and recreate.
-    // In production you'd write proper migrations.
-    final tables = [
-      DatabaseConstants.transactionsTable,
-      DatabaseConstants.expectedExpensesTable,
-      DatabaseConstants.slipUpsTable,
-      DatabaseConstants.archivedTransactionsTable,
-      DatabaseConstants.journalTable,
-      DatabaseConstants.goalsTable,
-    ];
-    for (final table in tables) {
-      await db.execute('DROP TABLE IF EXISTS $table');
+    // Migration: add jar_allocations table if missing (added in v4)
+    if (oldVersion < 4) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS ${DatabaseConstants.jarAllocationsTable} (
+          ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+          ${DatabaseConstants.colMonth} TEXT NOT NULL,
+          ${DatabaseConstants.colJarName} TEXT NOT NULL,
+          ${DatabaseConstants.colPercentage} REAL NOT NULL
+        )
+      ''');
     }
-    await _createDB(db, newVersion);
   }
 }

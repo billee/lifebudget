@@ -54,7 +54,9 @@ class RulesEngine {
       if (t.type == 'income') {
         totalIncome += t.amount;
       } else {
-        final jar = t.jar.toLowerCase();
+        var jar = t.jar.toLowerCase();
+        // Normalize legacy goal jar names: 'goal_tv' → 'tv'
+        if (jar.startsWith('goal_')) jar = jar.substring(5);
         jarSpent[jar] = (jarSpent[jar] ?? 0) + t.amount;
       }
     }
