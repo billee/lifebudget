@@ -1,10 +1,10 @@
 import '../insight_model.dart';
 import '../insight_rule.dart';
 
-/// Compares this month's daily spending rate to last month's archived data.
-/// If no archived data, projects whether current pace will exceed income.
+/// Projects spending based on expense frequency:
+/// - Monthly expenses: use actual amount (fixed for the month)
+/// - Daily/weekly expenses: (spent / daysElapsed) × daysInMonth
 class SpendingTrendRule extends InsightRule {
-  /// Last month's jar summaries (may be empty if no archive exists).
   final Map<String, double> lastMonthJarSpent;
 
   SpendingTrendRule({this.lastMonthJarSpent = const {}});
@@ -15,16 +15,35 @@ class SpendingTrendRule extends InsightRule {
 
     final insights = <Insight>[];
 
-    // Total current spending
-    final totalSpent = ctx.jarSpent.values.fold<double>(0, (a, b) => a + b);
+    // Build sets of monthly vs daily/weekly jars from expected expenses
+    final monthlyJars = <String>{};
+    for (final exp in ctx.expectedExpenses) {
+      if (exp.frequency == 'monthly') {
+        monthlyJars.add(exp.title.toLowerCase());
+      }
+    }
+
+    // Split spending into monthly (fixed) and daily/weekly (variable)
+    double monthlySpent = 0;
+    double dailySpent = 0;
+
+    for (final entry in ctx.jarSpent.entries) {
+      if (monthlyJars.contains(entry.key)) {
+        monthlySpent += entry.value;
+      } else {
+        dailySpent += entry.value;
+      }
+    }
+
+    // Projection: monthly actual + daily rate × full month
+    final dailyRate = dailySpent / ctx.daysElapsed;
+    final projectedDaily = dailyRate * ctx.daysInMonth;
+    final projectedTotal = monthlySpent + projectedDaily;
 
     if (lastMonthJarSpent.isNotEmpty) {
-      // Compare per-jar: which jars are trending up vs last month?
+      // Compare with last month
       final lastTotal =
           lastMonthJarSpent.values.fold<double>(0, (a, b) => a + b);
-
-      // Projected total based on current pace
-      final projectedTotal = (totalSpent / ctx.daysElapsed) * ctx.daysInMonth;
 
       if (lastTotal > 0 && projectedTotal > lastTotal * 1.15) {
         final increasePct =
@@ -40,8 +59,7 @@ class SpendingTrendRule extends InsightRule {
         ));
       }
     } else {
-      // No archive: just project and warn if pace exceeds income
-      final projectedTotal = (totalSpent / ctx.daysElapsed) * ctx.daysInMonth;
+      // No archive: warn if projection exceeds income
       if (projectedTotal > ctx.totalIncome * 0.9) {
         final pct = (projectedTotal / ctx.totalIncome * 100).round();
         insights.add(Insight(

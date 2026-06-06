@@ -18,8 +18,11 @@ class InsightContext {
   /// Total income this month.
   final double totalIncome;
 
-  /// Spending per jar (lowercased jar name → total).
+  /// Spending per jar (lowercased jar name → total), includes expenses + savings.
   final Map<String, double> jarSpent;
+
+  /// Spending per jar for actual expenses only (excludes savings/goal contributions).
+  final Map<String, double> expenseOnlySpent;
 
   /// Days elapsed in the current month (1-based).
   final int daysElapsed;
@@ -36,6 +39,7 @@ class InsightContext {
     required this.journalEntries,
     required this.totalIncome,
     required this.jarSpent,
+    required this.expenseOnlySpent,
     required this.daysElapsed,
     required this.daysInMonth,
   });

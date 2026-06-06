@@ -46,11 +46,18 @@ class RulesEngine {
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
     final daysElapsed = now.difference(firstDay).inDays + 1;
 
-    // Compute totals
+    // Compute totals — current month only
     double totalIncome = 0;
     final Map<String, double> jarSpent = {};
+    final Map<String, double> expenseOnlySpent = {};
+    final currentMonthStart = DateTime(now.year, now.month, 1);
+    final currentMonthTxns = <TransactionModel>[];
 
     for (final t in transactions) {
+      // Skip transactions from previous months
+      if (t.date.isBefore(currentMonthStart)) continue;
+      currentMonthTxns.add(t);
+
       if (t.type == 'income') {
         totalIncome += t.amount;
       } else {
@@ -58,11 +65,15 @@ class RulesEngine {
         // Normalize legacy goal jar names: 'goal_tv' → 'tv'
         if (jar.startsWith('goal_')) jar = jar.substring(5);
         jarSpent[jar] = (jarSpent[jar] ?? 0) + t.amount;
+        // Track actual expenses only (exclude savings)
+        if (t.type == 'expense') {
+          expenseOnlySpent[jar] = (expenseOnlySpent[jar] ?? 0) + t.amount;
+        }
       }
     }
 
     final ctx = InsightContext(
-      transactions: transactions,
+      transactions: currentMonthTxns,
       allocations: allocations,
       expectedExpenses: expectedExpenses,
       goals: goals,
@@ -70,6 +81,7 @@ class RulesEngine {
       journalEntries: journalEntries,
       totalIncome: totalIncome,
       jarSpent: jarSpent,
+      expenseOnlySpent: expenseOnlySpent,
       daysElapsed: daysElapsed,
       daysInMonth: daysInMonth,
     );
