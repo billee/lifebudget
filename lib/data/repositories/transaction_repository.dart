@@ -35,7 +35,7 @@ class TransactionRepository {
     final expenseResult = await db.rawQuery('''
       SELECT ${DatabaseConstants.colJar}, SUM(${DatabaseConstants.colAmount}) as total
       FROM ${DatabaseConstants.transactionsTable}
-      WHERE ${DatabaseConstants.colType} = 'expense'
+      WHERE ${DatabaseConstants.colType} IN ('expense', 'savings')
       GROUP BY ${DatabaseConstants.colJar}
     ''');
 

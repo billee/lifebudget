@@ -80,33 +80,49 @@ class BudgetScreen extends ConsumerWidget {
                         itemBuilder: (context, index) {
                           final t = transactions[index];
                           final isIncome = t.type == 'income';
-                          return ListTile(
-                            leading: Icon(
-                              isIncome
-                                  ? Icons.add_circle_outline
-                                  : Icons.remove_circle_outline,
-                              color: isIncome
-                                  ? AppColors.onTrack
-                                  : AppColors.critical,
-                            ),
-                            title: Text(
-                              isIncome
-                                  ? '+${t.amount.toStringAsFixed(0)}'
-                                  : '-${t.amount.toStringAsFixed(0)}',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: Text(
-                              isIncome
-                                  ? 'Income'
-                                  : t.jar[0].toUpperCase() + t.jar.substring(1),
-                              style: const TextStyle(
-                                  color: AppColors.textSecondary),
-                            ),
-                            trailing: Text(
-                              '${t.date.month}/${t.date.day}',
-                              style: const TextStyle(
-                                  color: AppColors.textSecondary),
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 6),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isIncome
+                                      ? Icons.add_circle_outline
+                                      : Icons.remove_circle_outline,
+                                  color: isIncome
+                                      ? AppColors.onTrack
+                                      : AppColors.critical,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  isIncome
+                                      ? '+${t.amount.toStringAsFixed(0)}'
+                                      : '-${t.amount.toStringAsFixed(0)}',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    isIncome
+                                        ? 'Income'
+                                        : t.jar[0].toUpperCase() +
+                                            t.jar.substring(1),
+                                    style: const TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 14),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  '${t.date.month}/${t.date.day}',
+                                  style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 13),
+                                ),
+                              ],
                             ),
                           );
                         },
@@ -135,37 +151,35 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1, // makes it a square
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: color),
-                const SizedBox(width: 6),
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 14, color: AppColors.textSecondary)),
-              ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(width: 6),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 14, color: AppColors.textSecondary)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              formatAmount(amount),
+              style: TextStyle(
+                  fontSize: 22, fontWeight: FontWeight.bold, color: color),
             ),
-            const Spacer(),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                formatAmount(amount),
-                style: TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.bold, color: color),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
