@@ -10,6 +10,7 @@ import '../../providers/expected_expenses_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../widgets/common/lifebudget_scaffold.dart';
 import 'goal_celebrate_screen.dart';
+import '../../widgets/common/app_menu_button.dart';
 
 class GoalsScreen extends ConsumerStatefulWidget {
   const GoalsScreen({super.key});
@@ -299,6 +300,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
         title: const Text('Goals', style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: const [AppMenuButton()],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),

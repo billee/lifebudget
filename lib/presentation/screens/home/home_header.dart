@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../providers/user_provider.dart';
+import '../../widgets/common/app_menu_button.dart';
 
 class HomeHeader extends ConsumerWidget {
   final String statusLine;
@@ -77,6 +78,7 @@ class HomeHeader extends ConsumerWidget {
               ),
               onPressed: () {},
             ),
+            const AppMenuButton(),
           ],
         ),
       ),

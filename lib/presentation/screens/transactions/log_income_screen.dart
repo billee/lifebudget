@@ -5,6 +5,7 @@ import '../../providers/transaction_provider.dart';
 import '../../../data/models/transaction_model.dart';
 import '../../providers/budget_provider.dart';
 import '../../widgets/common/ad_banner_widget.dart';
+import '../../widgets/common/app_menu_button.dart';
 
 class LogIncomeScreen extends ConsumerStatefulWidget {
   const LogIncomeScreen({super.key});
@@ -70,6 +71,7 @@ class _LogIncomeScreenState extends ConsumerState<LogIncomeScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: const [AppMenuButton()],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),

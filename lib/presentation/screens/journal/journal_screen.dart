@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../data/models/journal_entry_model.dart';
 import '../../providers/journal_provider.dart';
 import '../../widgets/common/lifebudget_scaffold.dart';
+import '../../widgets/common/app_menu_button.dart';
 
 class JournalScreen extends ConsumerStatefulWidget {
   const JournalScreen({super.key});
@@ -65,6 +66,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
         title: const Text('Journal', style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: const [AppMenuButton()],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

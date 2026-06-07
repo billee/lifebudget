@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../data/models/slip_up_model.dart';
 import '../../providers/slip_up_provider.dart';
 import '../../widgets/common/ad_banner_widget.dart';
+import '../../widgets/common/app_menu_button.dart';
 
 class SlipUpScreen extends ConsumerStatefulWidget {
   const SlipUpScreen({super.key});
@@ -94,6 +95,7 @@ class _SlipUpScreenState extends ConsumerState<SlipUpScreen> {
             const Text('I Slipped Up', style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: const [AppMenuButton()],
       ),
       body: Column(
         children: [

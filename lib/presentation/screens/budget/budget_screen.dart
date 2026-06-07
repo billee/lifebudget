@@ -5,6 +5,7 @@ import '../../../data/models/transaction_model.dart';
 import '../../providers/transaction_provider.dart';
 import '../../widgets/common/lifebudget_scaffold.dart';
 import '../../../core/utils/number_formatter.dart';
+import '../../widgets/common/app_menu_button.dart';
 
 class BudgetScreen extends ConsumerWidget {
   const BudgetScreen({super.key});
@@ -20,6 +21,7 @@ class BudgetScreen extends ConsumerWidget {
             const Text('Transactions', style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: const [AppMenuButton()],
       ),
       body: transactionsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

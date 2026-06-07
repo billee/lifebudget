@@ -11,6 +11,7 @@ import '../../providers/slip_up_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../../services/notification_service.dart';
 import '../../widgets/common/lifebudget_scaffold.dart';
+import '../../widgets/common/app_menu_button.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -165,6 +166,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         title: const Text('Your Budget', style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: const [AppMenuButton()],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),

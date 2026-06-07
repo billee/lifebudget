@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/transaction_provider.dart';
 import '../../../data/models/transaction_model.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../widgets/common/app_menu_button.dart';
 
 class JarDetailScreen extends ConsumerWidget {
   final String jarName;
@@ -16,6 +17,7 @@ class JarDetailScreen extends ConsumerWidget {
         title: Text('${jarName[0].toUpperCase()}${jarName.substring(1)}'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: const [AppMenuButton()],
       ),
       body: FutureBuilder<List<TransactionModel>>(
         future: repo.getTransactionsByJar(jarName),

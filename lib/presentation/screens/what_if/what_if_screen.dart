@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../providers/transaction_provider.dart';
 import '../../widgets/common/ad_banner_widget.dart';
+import '../../widgets/common/app_menu_button.dart';
 
 class WhatIfScreen extends ConsumerStatefulWidget {
   const WhatIfScreen({super.key});
@@ -34,6 +35,7 @@ class _WhatIfScreenState extends ConsumerState<WhatIfScreen> {
         title: const Text('What If?', style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: const [AppMenuButton()],
       ),
       body: Column(
         children: [

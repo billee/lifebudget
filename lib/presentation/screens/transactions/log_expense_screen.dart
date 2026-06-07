@@ -5,6 +5,7 @@ import '../../../data/models/transaction_model.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/expected_expenses_provider.dart';
 import '../../widgets/common/ad_banner_widget.dart';
+import '../../widgets/common/app_menu_button.dart';
 
 class LogExpenseScreen extends ConsumerStatefulWidget {
   const LogExpenseScreen({super.key});
@@ -81,6 +82,7 @@ class _LogExpenseScreenState extends ConsumerState<LogExpenseScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: const [AppMenuButton()],
       ),
       body: expensesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
