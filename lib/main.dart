@@ -5,6 +5,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'app.dart';
 import 'services/notification_service.dart';
+import 'services/goal_auto_saver.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,5 +13,6 @@ void main() async {
   tz.setLocalLocation(tz.local);
   await NotificationService.instance.init();
   await MobileAds.instance.initialize(); // Initialize AdMob
+  await GoalAutoSaver.processDaily(); // Auto-create daily goal savings
   runApp(const ProviderScope(child: LifeBudgetApp()));
 }

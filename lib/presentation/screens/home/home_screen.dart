@@ -237,48 +237,7 @@ class HomeScreen extends ConsumerWidget {
                           ref.invalidate(newMilestoneProvider);
                           ref.invalidate(shownMilestonesProvider);
                         },
-                      )
-                    else ...[
-                      FocusCardWidget(
-                        dailyAllowance: dailyAllowance,
-                        daysLeft: daysLeft,
-                        daysSinceLastSlipUp: daysSinceSlipUp,
-                        overrideMessage: focusOverrideMessage,
-                        nearestGoalMessage: nearestGoalMessage,
                       ),
-                      const SizedBox(height: 12),
-                      Center(
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                  builder: (_) => const SlipUpScreen()),
-                            );
-                          },
-                          child: const Text(
-                            "Had a rough day? It's okay.",
-                            style: TextStyle(
-                                color: AppColors.textSecondary, fontSize: 14),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Center(
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                  builder: (_) => const WhatIfScreen()),
-                            );
-                          },
-                          child: const Text(
-                            "What if I saved a little?",
-                            style: TextStyle(
-                                color: AppColors.textSecondary, fontSize: 14),
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                   const SizedBox(height: 100),
                 ],
