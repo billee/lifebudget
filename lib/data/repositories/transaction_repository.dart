@@ -31,19 +31,27 @@ class TransactionRepository {
   // N+1‑free summary: returns total spent per jar and total income
   Future<Map<String, double>> getJarSummaries() async {
     final db = await _dbHelper.database;
-    // One query to get sum of expenses per jar
+    // One query to get sum of expenses per jar (excluding _deduction jars)
     final expenseResult = await db.rawQuery('''
       SELECT ${DatabaseConstants.colJar}, SUM(${DatabaseConstants.colAmount}) as total
       FROM ${DatabaseConstants.transactionsTable}
       WHERE ${DatabaseConstants.colType} IN ('expense', 'savings')
+        AND ${DatabaseConstants.colJar} NOT LIKE '%_deduction'
       GROUP BY ${DatabaseConstants.colJar}
     ''');
 
-    // One query to get total income
+    // One query to get total income minus deductions
     final incomeResult = await db.rawQuery('''
-      SELECT SUM(${DatabaseConstants.colAmount}) as total
+      SELECT COALESCE(SUM(${DatabaseConstants.colAmount}), 0) as total
       FROM ${DatabaseConstants.transactionsTable}
       WHERE ${DatabaseConstants.colType} = 'income'
+    ''');
+
+    final deductionResult = await db.rawQuery('''
+      SELECT COALESCE(SUM(${DatabaseConstants.colAmount}), 0) as total
+      FROM ${DatabaseConstants.transactionsTable}
+      WHERE ${DatabaseConstants.colType} = 'expense'
+        AND ${DatabaseConstants.colJar} LIKE '%_deduction'
     ''');
 
     final Map<String, double> summaries = {};
@@ -53,10 +61,12 @@ class TransactionRepository {
       summaries[jar] = total;
     }
 
-    // total income stored under a special key
+    // Income minus deductions
     final totalIncome =
         (incomeResult.first['total'] as num?)?.toDouble() ?? 0.0;
-    summaries['__total_income__'] = totalIncome;
+    final totalDeductions =
+        (deductionResult.first['total'] as num?)?.toDouble() ?? 0.0;
+    summaries['__total_income__'] = totalIncome - totalDeductions;
 
     return summaries;
   }
@@ -88,6 +98,31 @@ class TransactionRepository {
       summaries[jar] = total;
     }
     return summaries;
+  }
+
+  // Delete all transactions for a specific jar (for expense cascade delete)
+  Future<void> deleteByJar(String jar) async {
+    final db = await _dbHelper.database;
+    await db.delete(
+      DatabaseConstants.transactionsTable,
+      where: '${DatabaseConstants.colJar} = ?',
+      whereArgs: [jar],
+    );
+  }
+
+  // Get total spent for a specific jar this month
+  Future<double> getJarSpentThisMonth(String jar) async {
+    final db = await _dbHelper.database;
+    final now = DateTime.now();
+    final firstDay = DateTime(now.year, now.month, 1);
+    final result = await db.rawQuery('''
+      SELECT COALESCE(SUM(${DatabaseConstants.colAmount}), 0) as total
+      FROM ${DatabaseConstants.transactionsTable}
+      WHERE ${DatabaseConstants.colJar} = ?
+        AND ${DatabaseConstants.colType} != 'income'
+        AND ${DatabaseConstants.colDate} >= ?
+    ''', [jar, firstDay.toIso8601String()]);
+    return (result.first['total'] as num?)?.toDouble() ?? 0.0;
   }
 
   // Delete all savings transactions for a specific jar (for goal cascade delete)

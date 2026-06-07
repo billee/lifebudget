@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../data/models/expected_expense_model.dart';
 import '../../../data/models/goal_model.dart';
+import '../../../data/models/transaction_model.dart';
 import '../../providers/expected_expenses_provider.dart';
 import '../../providers/goal_provider.dart';
 import '../../providers/user_provider.dart';
@@ -111,10 +112,94 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     });
   }
 
-  Future<void> _delete(int id) async {
-    final repo = ref.read(expectedExpenseRepositoryProvider);
-    await repo.delete(id);
-    ref.invalidate(expectedExpensesProvider);
+  Future<void> _delete(ExpectedExpense expense) async {
+    final transactionRepo = ref.read(transactionRepositoryProvider);
+    final jarName = expense.title.toLowerCase();
+    final spent = await transactionRepo.getJarSpentThisMonth(jarName);
+
+    if (spent > 0 && mounted) {
+      // Show info dialog explaining what will happen
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('Delete "${expense.title}"?'),
+          content: Text(
+            'You\'ve already spent ${formatAmount(spent)} on ${expense.title} this month.\n\n'
+            '• Budget will be set to \$0\n'
+            '• Your ${formatAmount(spent)} spending will be deducted from your income\n'
+            '• This keeps your daily allowance accurate\n\n'
+            'Your spending history will be preserved.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: TextButton.styleFrom(foregroundColor: AppColors.critical),
+              child: const Text('Delete Expense'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) return;
+
+      // 1. Set budget to 0
+      final repo = ref.read(expectedExpenseRepositoryProvider);
+      final updated = ExpectedExpense(
+        id: expense.id,
+        title: expense.title,
+        frequency: expense.frequency,
+        amount: 0,
+        month: expense.month,
+      );
+      await repo.update(updated);
+
+      // 2. Add a one-time "expense deduction" transaction
+      // This represents money already spent that reduces your available income
+      final deduction = TransactionModel(
+        type: 'expense',
+        jar: '${jarName}_deduction',
+        amount: spent,
+        date: DateTime.now(),
+        note: 'Past spending on ${expense.title} (budget deleted)',
+      );
+      await transactionRepo.insertTransaction(deduction);
+
+      // 3. Also handle matching goal if exists
+      final goalRepo = ref.read(goalRepositoryProvider);
+      final goals = await goalRepo.getAll();
+      for (final goal in goals) {
+        if (goal.title.toLowerCase().trim() == jarName) {
+          await goalRepo.delete(goal.id!);
+          ref.invalidate(goalsProvider);
+          break;
+        }
+      }
+
+      // 4. Refresh providers
+      ref.invalidate(expectedExpensesProvider);
+      ref.invalidate(allTransactionsProvider);
+      ref.invalidate(jarSummariesProvider);
+    } else {
+      // No spending yet — safe to just delete
+      final repo = ref.read(expectedExpenseRepositoryProvider);
+      await repo.delete(expense.id!);
+      ref.invalidate(expectedExpensesProvider);
+
+      // Also delete matching goal if exists
+      final goalRepo = ref.read(goalRepositoryProvider);
+      final goals = await goalRepo.getAll();
+      for (final goal in goals) {
+        if (goal.title.toLowerCase().trim() == jarName) {
+          await goalRepo.delete(goal.id!);
+          ref.invalidate(goalsProvider);
+          break;
+        }
+      }
+    }
   }
 
   Future<void> _saveName() async {
@@ -345,7 +430,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             IconButton(
                               icon: const Icon(Icons.delete,
                                   color: AppColors.critical),
-                              onPressed: () => _delete(exp.id!),
+                              onPressed: () => _delete(exp),
                             ),
                           ],
                         ),
