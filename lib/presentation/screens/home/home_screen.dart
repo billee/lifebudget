@@ -188,7 +188,7 @@ class HomeScreen extends ConsumerWidget {
     // ---- UI ----
     return Column(
       children: [
-        HomeHeader(statusLine: statusLine),
+        const HomeHeader(),
         Expanded(
           child: RefreshIndicator(
             onRefresh: () async {

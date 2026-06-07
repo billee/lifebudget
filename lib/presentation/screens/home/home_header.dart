@@ -5,8 +5,7 @@ import '../../providers/user_provider.dart';
 import '../../widgets/common/app_menu_button.dart';
 
 class HomeHeader extends ConsumerWidget {
-  final String statusLine;
-  const HomeHeader({super.key, required this.statusLine});
+  const HomeHeader({super.key});
 
   String _greeting() {
     final hour = DateTime.now().hour;
@@ -48,27 +47,13 @@ class HomeHeader extends ConsumerWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '$greeting, $name',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    statusLine,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ],
+              child: Text(
+                '$greeting, $name',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
               ),
             ),
             IconButton(
