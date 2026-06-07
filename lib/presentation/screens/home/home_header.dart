@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../providers/user_provider.dart';
-import '../../providers/alerts_provider.dart';
 import '../../widgets/common/app_menu_button.dart';
-import '../notifications/notification_screen.dart';
 
 class HomeHeader extends ConsumerWidget {
   const HomeHeader({super.key});
@@ -57,32 +55,6 @@ class HomeHeader extends ConsumerWidget {
                   color: Colors.white,
                 ),
               ),
-            ),
-            Consumer(
-              builder: (context, ref, _) {
-                final countAsync = ref.watch(alertCountProvider);
-                final count = countAsync.value ?? 0;
-                return IconButton(
-                  icon: Badge(
-                    isLabelVisible: count > 0,
-                    label: Text(
-                      count > 9 ? '9+' : '$count',
-                      style: const TextStyle(fontSize: 10),
-                    ),
-                    child: const Icon(
-                      Icons.notifications_none_rounded,
-                      color: Colors.white70,
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const NotificationScreen(),
-                      ),
-                    );
-                  },
-                );
-              },
             ),
             const AppMenuButton(),
           ],
