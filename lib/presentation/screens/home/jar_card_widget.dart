@@ -11,6 +11,7 @@ class JarCardWidget extends StatelessWidget {
   final double overBudgetRatio;
   final double? actualAverage;
   final String? monthlyStatus; // override status for monthly envelopes
+  final bool isGoal;
 
   const JarCardWidget({
     super.key,
@@ -22,6 +23,7 @@ class JarCardWidget extends StatelessWidget {
     this.overBudgetRatio = 1.0,
     this.actualAverage,
     this.monthlyStatus,
+    this.isGoal = false,
   });
 
   @override
@@ -116,10 +118,10 @@ class JarCardWidget extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                frequencyLabel,
+                isGoal ? 'Goal • $frequencyLabel' : frequencyLabel,
                 style: TextStyle(
                   fontSize: 11,
-                  color: color,
+                  color: isGoal ? AppColors.onTrack : color,
                   fontWeight: FontWeight.w500,
                 ),
               ),

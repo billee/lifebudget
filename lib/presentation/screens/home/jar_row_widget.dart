@@ -12,6 +12,7 @@ class JarRowWidget extends StatelessWidget {
   final int trackingDaysElapsed;
   final double dailyAllowance;
   final Map<String, DateTime> jarEarliestDate;
+  final Set<String> goalTitles;
 
   const JarRowWidget({
     super.key,
@@ -21,6 +22,7 @@ class JarRowWidget extends StatelessWidget {
     required this.trackingDaysElapsed,
     required this.dailyAllowance,
     this.jarEarliestDate = const {},
+    this.goalTitles = const {},
   });
 
   @override
@@ -100,6 +102,7 @@ class JarRowWidget extends StatelessWidget {
               overBudgetRatio: overBudgetRatio,
               actualAverage: actualAverage,
               monthlyStatus: monthlyStatus,
+              isGoal: goalTitles.contains(key),
             ),
           );
         },

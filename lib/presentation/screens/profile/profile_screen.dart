@@ -4,7 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../data/models/expected_expense_model.dart';
+import '../../../data/models/goal_model.dart';
 import '../../providers/expected_expenses_provider.dart';
+import '../../providers/goal_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/slip_up_provider.dart';
@@ -78,6 +80,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         month: month,
       );
       await repo.update(expense);
+    }
+
+    // Sync to matching Goal if one exists
+    final goalRepo = ref.read(goalRepositoryProvider);
+    final goals = await goalRepo.getAll();
+    final matchingGoal = goals.cast<Goal?>().firstWhere(
+          (g) => g!.title.toLowerCase().trim() == title.toLowerCase().trim(),
+          orElse: () => null,
+        );
+    if (matchingGoal != null) {
+      // Update dailyAmount if this is a daily expense
+      final newDailyAmount =
+          _frequency == 'daily' ? amount : matchingGoal.dailyAmount;
+      final updatedGoal = matchingGoal.copyWith(dailyAmount: newDailyAmount);
+      await goalRepo.update(updatedGoal);
+      ref.invalidate(goalsProvider);
     }
 
     ref.invalidate(expectedExpensesProvider);

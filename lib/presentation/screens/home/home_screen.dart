@@ -223,6 +223,10 @@ class HomeScreen extends ConsumerWidget {
                     trackingDaysElapsed: trackingDaysElapsed,
                     dailyAllowance: dailyAllowance,
                     jarEarliestDate: jarEarliestDate,
+                    goalTitles: goalsAsync.valueOrNull
+                            ?.map((g) => g.title.toLowerCase())
+                            .toSet() ??
+                        {},
                   ),
                   if (!survivalMode) ...[
                     const SizedBox(height: 24),

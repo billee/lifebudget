@@ -403,6 +403,18 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                         style: TextStyle(color: AppColors.textSecondary)),
                   );
                 }
+
+                // Build a map of title (lowercase) -> daily amount from expected expenses
+                final expectedExpenses =
+                    ref.watch(expectedExpensesProvider).valueOrNull ?? [];
+                final expectedDailyAmounts = <String, double>{};
+                for (final exp in expectedExpenses) {
+                  if (exp.frequency == 'daily') {
+                    expectedDailyAmounts[exp.title.toLowerCase().trim()] =
+                        exp.amount;
+                  }
+                }
+
                 return ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -410,6 +422,10 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                   itemBuilder: (context, index) {
                     final goal = goals[index];
                     final progress = goal.progressPercent;
+                    // Use ExpectedExpense amount if available
+                    final dailyAmount =
+                        expectedDailyAmounts[goal.title.toLowerCase().trim()] ??
+                            goal.dailyAmount;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(
@@ -434,7 +450,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold)),
                                       Text(
-                                        'Save ${formatAmount(goal.dailyAmount)}/day',
+                                        'Save ${formatAmount(dailyAmount)}/day',
                                         style: const TextStyle(
                                             fontSize: 13,
                                             color: AppColors.textSecondary),
