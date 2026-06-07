@@ -16,7 +16,7 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   double _fabOffsetX = 20;
-  double _fabOffsetY = 90;
+  double _fabOffsetY = 100; // Top position, below header
   bool _fabExpanded = false;
   final _fabKey = GlobalKey<FabSpeedDialState>();
 
@@ -51,17 +51,17 @@ class _HomeShellState extends State<HomeShell> {
             left: _fabOffsetX >= MediaQuery.of(context).size.width / 2
                 ? MediaQuery.of(context).size.width - _fabOffsetX - 34
                 : null,
-            bottom: _fabOffsetY,
+            top: _fabOffsetY,
             child: GestureDetector(
               onPanUpdate: (details) {
                 setState(() {
                   _fabOffsetX -= details.delta.dx;
-                  _fabOffsetY -= details.delta.dy;
+                  _fabOffsetY += details.delta.dy;
                   // Clamp within screen bounds
                   final screenWidth = MediaQuery.of(context).size.width;
                   final screenHeight = MediaQuery.of(context).size.height;
                   _fabOffsetX = _fabOffsetX.clamp(8, screenWidth - 50);
-                  _fabOffsetY = _fabOffsetY.clamp(8, screenHeight - 120);
+                  _fabOffsetY = _fabOffsetY.clamp(80, screenHeight - 120);
                 });
               },
               child: FabSpeedDial(
