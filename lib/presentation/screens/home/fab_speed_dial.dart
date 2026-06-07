@@ -4,13 +4,24 @@ import '../../screens/transactions/log_expense_screen.dart';
 import '../../screens/transactions/log_income_screen.dart';
 
 class FabSpeedDial extends StatefulWidget {
-  const FabSpeedDial({super.key});
+  /// Whether the FAB is positioned on the left half of the screen.
+  /// Sub-FABs will appear to the right when true, left when false.
+  final bool isOnLeftSide;
+
+  /// Called when expanded/collapsed so parent can show dismiss overlay.
+  final ValueChanged<bool>? onExpandedChanged;
+
+  const FabSpeedDial({
+    super.key,
+    this.isOnLeftSide = false,
+    this.onExpandedChanged,
+  });
 
   @override
-  State<FabSpeedDial> createState() => _FabSpeedDialState();
+  State<FabSpeedDial> createState() => FabSpeedDialState();
 }
 
-class _FabSpeedDialState extends State<FabSpeedDial>
+class FabSpeedDialState extends State<FabSpeedDial>
     with SingleTickerProviderStateMixin {
   bool _expanded = false;
   late AnimationController _controller;
@@ -39,14 +50,31 @@ class _FabSpeedDialState extends State<FabSpeedDial>
     setState(() {
       _expanded = !_expanded;
       _expanded ? _controller.forward() : _controller.reverse();
+      widget.onExpandedChanged?.call(_expanded);
     });
+  }
+
+  /// Allow parent to collapse the FAB (e.g. when tapping outside).
+  void collapse() {
+    if (_expanded) {
+      setState(() {
+        _expanded = false;
+        _controller.reverse();
+        widget.onExpandedChanged?.call(false);
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // When FAB is on the left side of screen → sub-FABs go right (start alignment)
+    // When FAB is on the right side of screen → sub-FABs go left (end alignment)
+    final alignment =
+        widget.isOnLeftSide ? CrossAxisAlignment.start : CrossAxisAlignment.end;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment: alignment,
       children: [
         if (_expanded) ...[
           _MiniFAB(

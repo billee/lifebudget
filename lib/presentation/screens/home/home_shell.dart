@@ -17,6 +17,8 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   double _fabOffsetX = 20;
   double _fabOffsetY = 90;
+  bool _fabExpanded = false;
+  final _fabKey = GlobalKey<FabSpeedDialState>();
 
   void _onTap(int index) {
     widget.navigationShell.goBranch(
@@ -31,8 +33,24 @@ class _HomeShellState extends State<HomeShell> {
       body: Stack(
         children: [
           widget.navigationShell,
+          // Tap-outside-to-dismiss overlay (only when FAB is expanded)
+          if (_fabExpanded)
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: () {
+                  _fabKey.currentState?.collapse();
+                },
+                child: Container(color: Colors.transparent),
+              ),
+            ),
           Positioned(
-            right: _fabOffsetX,
+            right: _fabOffsetX < MediaQuery.of(context).size.width / 2
+                ? _fabOffsetX
+                : null,
+            left: _fabOffsetX >= MediaQuery.of(context).size.width / 2
+                ? MediaQuery.of(context).size.width - _fabOffsetX - 34
+                : null,
             bottom: _fabOffsetY,
             child: GestureDetector(
               onPanUpdate: (details) {
@@ -46,7 +64,14 @@ class _HomeShellState extends State<HomeShell> {
                   _fabOffsetY = _fabOffsetY.clamp(8, screenHeight - 120);
                 });
               },
-              child: const FabSpeedDial(),
+              child: FabSpeedDial(
+                key: _fabKey,
+                isOnLeftSide:
+                    _fabOffsetX >= MediaQuery.of(context).size.width / 2,
+                onExpandedChanged: (expanded) {
+                  setState(() => _fabExpanded = expanded);
+                },
+              ),
             ),
           ),
         ],
