@@ -482,27 +482,9 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  '${formatAmount(goal.currentAmount)} of ${formatAmount(goal.targetAmount)}',
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                                if (!goal.isCompleted)
-                                  ElevatedButton.icon(
-                                    onPressed: () => _addMoney(goal),
-                                    icon: const Icon(Icons.add, size: 18),
-                                    label: const Text('Add Extra'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.primary,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12)),
-                                    ),
-                                  ),
-                              ],
+                            Text(
+                              '${formatAmount(goal.currentAmount)} of ${formatAmount(goal.targetAmount)}',
+                              style: const TextStyle(fontSize: 14),
                             ),
                             if (goal.isCompleted)
                               Container(
