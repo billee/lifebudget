@@ -25,6 +25,15 @@ final alertsProvider = FutureProvider<List<BudgetAlert>>((ref) async {
     allocations[a.jarName.toLowerCase()] = a.percentage;
   }
 
+  // Build set of monthly jars from expected expenses
+  final expectedExpenses = await ref.watch(expectedExpensesProvider.future);
+  final monthlyJars = <String>{};
+  for (final exp in expectedExpenses) {
+    if (exp.frequency == 'monthly') {
+      monthlyJars.add(exp.title.toLowerCase());
+    }
+  }
+
   // Slip-ups for current month
   final slipUpRepo = ref.watch(slipUpRepositoryProvider);
   final slipUps = await slipUpRepo.getForMonth(_currentMonth());
@@ -70,6 +79,7 @@ final alertsProvider = FutureProvider<List<BudgetAlert>>((ref) async {
     goals: goals,
     slipUps: slipUps,
     daysSinceLastLog: daysSinceLastLog,
+    monthlyJars: monthlyJars,
   );
 });
 

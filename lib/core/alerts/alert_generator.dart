@@ -15,6 +15,7 @@ class AlertGenerator {
     required List<Goal> goals,
     required List<SlipUp> slipUps,
     required int daysSinceLastLog,
+    required Set<String> monthlyJars,
   }) {
     final now = DateTime.now();
     final firstDay = DateTime(now.year, now.month, 1);
@@ -27,13 +28,23 @@ class AlertGenerator {
 
     final alerts = <BudgetAlert>[];
 
-    // ── 1. Spending pace warning ──
+    // ── 1. Spending pace warning (frequency-aware) ──
     if (totalIncome > 0 && daysElapsed > 0) {
-      final totalExpenses = currentMonthTxns
-          .where((t) => t.type == 'expense' || t.type == 'savings')
-          .fold<double>(0, (sum, t) => sum + t.amount);
-      final dailyRate = totalExpenses / daysElapsed;
-      final projected = dailyRate * daysInMonth;
+      // Split spending into monthly (fixed) and daily (variable)
+      double monthlySpent = 0;
+      double dailySpent = 0;
+
+      for (final entry in jarSpent.entries) {
+        if (monthlyJars.contains(entry.key)) {
+          monthlySpent += entry.value;
+        } else {
+          dailySpent += entry.value;
+        }
+      }
+
+      // Projection: monthly actual + daily rate × full month
+      final dailyRate = dailySpent / daysElapsed;
+      final projected = monthlySpent + (dailyRate * daysInMonth);
 
       if (projected > totalIncome) {
         alerts.add(BudgetAlert(
@@ -60,7 +71,7 @@ class AlertGenerator {
 
         final pctUsed = (spent / budget) * 100;
 
-        if (pctUsed >= 100) {
+        if (pctUsed > 100) {
           alerts.add(BudgetAlert(
             title: '${_capitalize(jar)} budget exceeded',
             message:
@@ -69,9 +80,19 @@ class AlertGenerator {
             type: AlertType.warning,
             timestamp: now,
           ));
-        } else if (pctUsed >= 80) {
+        } else if (pctUsed >= 100) {
+          // Exactly 100% — fully paid
           alerts.add(BudgetAlert(
-            title: '${_capitalize(jar)} budget running low',
+            title: '${_capitalize(jar)} paid ✓',
+            message:
+                'You\'ve fully covered your \$${budget.toStringAsFixed(0)} ${jar} budget. Nice!',
+            icon: Icons.check_circle_outline,
+            type: AlertType.achievement,
+            timestamp: now,
+          ));
+        } else if (pctUsed >= 90) {
+          alerts.add(BudgetAlert(
+            title: '${_capitalize(jar)} almost done',
             message:
                 'You\'ve used ${pctUsed.toStringAsFixed(0)}% of your ${jar} budget (\$${spent.toStringAsFixed(0)} / \$${budget.toStringAsFixed(0)}).',
             icon: Icons.info_outline,
