@@ -286,9 +286,43 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
   }
 
   Future<void> _delete(int id) async {
-    final repo = ref.read(goalRepositoryProvider);
-    await repo.delete(id);
-    ref.invalidate(goalsProvider);
+    // Get the goal before deleting to know its title
+    final goalRepo = ref.read(goalRepositoryProvider);
+    final goals = await goalRepo.getAll();
+    final goal = goals.cast<Goal?>().firstWhere(
+          (g) => g!.id == id,
+          orElse: () => null,
+        );
+
+    if (goal != null) {
+      final goalTitleLower = goal.title.toLowerCase().trim();
+
+      // Cascade delete: Goal + ExpectedExpense + Savings transactions
+      final expectedRepo = ref.read(expectedExpenseRepositoryProvider);
+      final transactionRepo = ref.read(transactionRepositoryProvider);
+
+      // 1. Find and delete matching ExpectedExpense by ID (case-insensitive)
+      final allExpenses = await expectedRepo.getForMonth(
+          '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}');
+      for (final exp in allExpenses) {
+        if (exp.title.toLowerCase().trim() == goalTitleLower) {
+          await expectedRepo.delete(exp.id!);
+          break;
+        }
+      }
+
+      // 2. Delete all savings transactions for this goal's jar
+      await transactionRepo.deleteSavingsByJar(goalTitleLower);
+
+      // 3. Delete the Goal itself
+      await goalRepo.delete(id);
+
+      // Invalidate providers to refresh UI
+      ref.invalidate(goalsProvider);
+      ref.invalidate(expectedExpensesProvider);
+      ref.invalidate(allTransactionsProvider);
+      ref.invalidate(jarSummariesProvider);
+    }
   }
 
   @override

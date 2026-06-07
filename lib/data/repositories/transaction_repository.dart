@@ -90,6 +90,17 @@ class TransactionRepository {
     return summaries;
   }
 
+  // Delete all savings transactions for a specific jar (for goal cascade delete)
+  Future<void> deleteSavingsByJar(String jar) async {
+    final db = await _dbHelper.database;
+    await db.delete(
+      DatabaseConstants.transactionsTable,
+      where:
+          '${DatabaseConstants.colJar} = ? AND ${DatabaseConstants.colType} = ?',
+      whereArgs: [jar, 'savings'],
+    );
+  }
+
 // Archive all transactions for the given month and delete them from active
   Future<void> archiveMonth(String month) async {
     final db = await _dbHelper.database;

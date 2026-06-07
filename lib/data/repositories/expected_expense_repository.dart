@@ -43,9 +43,10 @@ class ExpectedExpenseRepository {
 
   Future<void> deleteByTitle(String title) async {
     final db = await _dbHelper.database;
+    // Case-insensitive delete
     await db.delete(
       DatabaseConstants.expectedExpensesTable,
-      where: 'title = ?',
+      where: 'LOWER(title) = LOWER(?)',
       whereArgs: [title],
     );
   }
