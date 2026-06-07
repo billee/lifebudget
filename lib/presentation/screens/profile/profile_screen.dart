@@ -427,11 +427,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   color: AppColors.primary),
                               onPressed: () => _edit(exp),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.delete,
-                                  color: AppColors.critical),
-                              onPressed: () => _delete(exp),
-                            ),
+                            if (exp.amount > 0)
+                              IconButton(
+                                icon: const Icon(Icons.delete,
+                                    color: AppColors.critical),
+                                onPressed: () => _delete(exp),
+                              ),
                           ],
                         ),
                       ),

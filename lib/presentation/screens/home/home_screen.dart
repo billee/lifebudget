@@ -100,8 +100,9 @@ class HomeScreen extends ConsumerWidget {
         ? expectedExpenses
             .where((e) => ['food', 'transport', 'rent', 'utilities']
                 .contains(e.title.toLowerCase()))
+            .where((e) => e.amount > 0)
             .toList()
-        : expectedExpenses;
+        : expectedExpenses.where((e) => e.amount > 0).toList();
 
     double plannedMonthlyTotal = 0;
     for (final exp in expectedExpenses) {
