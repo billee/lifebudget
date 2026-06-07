@@ -82,7 +82,7 @@ class _HomeShellState extends State<HomeShell> {
           const AdBannerWidget(),
           Container(
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: AppColors.primary,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -92,6 +92,9 @@ class _HomeShellState extends State<HomeShell> {
               ],
             ),
             child: BottomNavigationBar(
+              backgroundColor: AppColors.primary,
+              selectedItemColor: Colors.white,
+              unselectedItemColor: Colors.white70,
               currentIndex: widget.navigationShell.currentIndex,
               onTap: _onTap,
               items: const [
