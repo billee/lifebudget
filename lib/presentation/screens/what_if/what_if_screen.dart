@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../providers/transaction_provider.dart';
+import '../../widgets/common/ad_banner_widget.dart';
 
 class WhatIfScreen extends ConsumerStatefulWidget {
   const WhatIfScreen({super.key});
@@ -34,114 +35,124 @@ class _WhatIfScreenState extends ConsumerState<WhatIfScreen> {
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Small steps, big futures.',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'See how much you could have if you set aside a little each week.',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 24),
-
-            // Weekly amount slider
-            const Text('How much could you set aside each week?',
-                style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Slider(
-                    value: _weeklyAmount,
-                    min: 0,
-                    max: sliderMax,
-                    divisions: ((sliderMax) / 10).ceil(),
-                    label: formatAmount(_weeklyAmount),
-                    activeColor: AppColors.primary,
-                    onChanged: (val) => setState(() => _weeklyAmount = val),
-                  ),
-                ),
-                SizedBox(
-                  width: 80,
-                  child: Text(formatAmount(_weeklyAmount),
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 18)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Number of months
-            const Text('Over how many months?', style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Slider(
-                    value: _months.toDouble(),
-                    min: 1,
-                    max: 12,
-                    divisions: 11,
-                    label: '$_months months',
-                    activeColor: AppColors.primary,
-                    onChanged: (val) => setState(() => _months = val.round()),
-                  ),
-                ),
-                SizedBox(
-                  width: 80,
-                  child: Text('$_months months',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 18)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Projection
-            Container(
-              width: double.infinity,
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.cardBackground,
-                borderRadius: BorderRadius.circular(20),
-              ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('You could have',
-                      style: TextStyle(
-                          fontSize: 16, color: AppColors.textSecondary)),
-                  const SizedBox(height: 8),
-                  Text(
-                    '₱$projectedString',
-                    style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary),
+                  const Text(
+                    'Small steps, big futures.',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    'in $_months month${_months > 1 ? 's' : ''}.',
-                    style: const TextStyle(fontSize: 16),
+                  const Text(
+                    'See how much you could have if you set aside a little each week.',
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _inspirationMessage(_weeklyAmount, projectedTotal),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontStyle: FontStyle.italic),
+                  const SizedBox(height: 24),
+
+                  // Weekly amount slider
+                  const Text('How much could you set aside each week?',
+                      style: TextStyle(fontSize: 16)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: _weeklyAmount,
+                          min: 0,
+                          max: sliderMax,
+                          divisions: ((sliderMax) / 10).ceil(),
+                          label: formatAmount(_weeklyAmount),
+                          activeColor: AppColors.primary,
+                          onChanged: (val) =>
+                              setState(() => _weeklyAmount = val),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 80,
+                        child: Text(formatAmount(_weeklyAmount),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 18)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Number of months
+                  const Text('Over how many months?',
+                      style: TextStyle(fontSize: 16)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: _months.toDouble(),
+                          min: 1,
+                          max: 12,
+                          divisions: 11,
+                          label: '$_months months',
+                          activeColor: AppColors.primary,
+                          onChanged: (val) =>
+                              setState(() => _months = val.round()),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 80,
+                        child: Text('$_months months',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 18)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Projection
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBackground,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text('You could have',
+                            style: TextStyle(
+                                fontSize: 16, color: AppColors.textSecondary)),
+                        const SizedBox(height: 8),
+                        Text(
+                          '₱$projectedString',
+                          style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'in $_months month${_months > 1 ? 's' : ''}.',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _inspirationMessage(_weeklyAmount, projectedTotal),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontStyle: FontStyle.italic),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+          const AdBannerWidget(),
+        ],
       ),
     );
   }

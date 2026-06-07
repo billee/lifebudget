@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'app.dart';
@@ -10,5 +11,6 @@ void main() async {
   tz.initializeTimeZones();
   tz.setLocalLocation(tz.local);
   await NotificationService.instance.init();
+  await MobileAds.instance.initialize(); // Initialize AdMob
   runApp(const ProviderScope(child: LifeBudgetApp()));
 }

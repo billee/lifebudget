@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../providers/transaction_provider.dart';
 import '../../../data/models/transaction_model.dart';
 import '../../providers/budget_provider.dart';
+import '../../widgets/common/ad_banner_widget.dart';
 
 class LogIncomeScreen extends ConsumerStatefulWidget {
   const LogIncomeScreen({super.key});
@@ -115,6 +116,8 @@ class _LogIncomeScreenState extends ConsumerState<LogIncomeScreen> {
                 child: const Text('Done', style: TextStyle(fontSize: 18)),
               ),
             ),
+            const SizedBox(height: 12),
+            const AdBannerWidget(),
             const SizedBox(height: 20),
           ],
         ),

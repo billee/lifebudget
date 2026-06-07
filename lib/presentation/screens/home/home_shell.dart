@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../widgets/common/lifebudget_scaffold.dart'; // ← moved to top
+import '../../widgets/common/ad_banner_widget.dart';
 import 'fab_speed_dial.dart';
 
 class HomeShell extends StatefulWidget {
@@ -50,34 +51,42 @@ class _HomeShellState extends State<HomeShell> {
           ),
         ],
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const AdBannerWidget(),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: widget.navigationShell.currentIndex,
-          onTap: _onTap,
-          items: const [
-            BottomNavigationBarItem(
-                icon: Icon(Icons.home_rounded), label: AppStrings.navHome),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.account_balance_wallet_rounded),
-                label: AppStrings.navBudget),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.book_rounded), label: AppStrings.navJournal),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.flag_rounded), label: AppStrings.navGoals),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.person_rounded), label: AppStrings.navProfile),
-          ],
-        ),
+            child: BottomNavigationBar(
+              currentIndex: widget.navigationShell.currentIndex,
+              onTap: _onTap,
+              items: const [
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.home_rounded), label: AppStrings.navHome),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.account_balance_wallet_rounded),
+                    label: AppStrings.navBudget),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.book_rounded),
+                    label: AppStrings.navJournal),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.flag_rounded), label: AppStrings.navGoals),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.person_rounded),
+                    label: AppStrings.navProfile),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

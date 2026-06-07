@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/slip_up_model.dart';
 import '../../providers/slip_up_provider.dart';
+import '../../widgets/common/ad_banner_widget.dart';
 
 class SlipUpScreen extends ConsumerStatefulWidget {
   const SlipUpScreen({super.key});
@@ -94,9 +95,16 @@ class _SlipUpScreenState extends ConsumerState<SlipUpScreen> {
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: _submitted ? _buildResponse(slipUpsAsync) : _buildForm(),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: _submitted ? _buildResponse(slipUpsAsync) : _buildForm(),
+            ),
+          ),
+          const AdBannerWidget(),
+        ],
       ),
     );
   }
