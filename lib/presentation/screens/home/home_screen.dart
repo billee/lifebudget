@@ -58,6 +58,8 @@ class HomeScreen extends ConsumerWidget {
     double totalIncome = 0;
     double totalSpent = 0;
     final Map<String, double> jarSpent = {};
+    final Map<String, DateTime> jarEarliestDate =
+        {}; // per-jar first expense date
     DateTime? earliestDate;
     final currentMonth = DateTime(now.year, now.month, 1);
 
@@ -73,6 +75,11 @@ class HomeScreen extends ConsumerWidget {
         // Normalize legacy goal jar names: 'goal_tv' → 'tv'
         if (jar.startsWith('goal_')) jar = jar.substring(5);
         jarSpent[jar] = (jarSpent[jar] ?? 0) + t.amount;
+        // Track earliest date per jar
+        if (!jarEarliestDate.containsKey(jar) ||
+            t.date.isBefore(jarEarliestDate[jar]!)) {
+          jarEarliestDate[jar] = t.date;
+        }
       }
       if (earliestDate == null || t.date.isBefore(earliestDate)) {
         earliestDate = t.date;
@@ -216,6 +223,7 @@ class HomeScreen extends ConsumerWidget {
                     totalIncome: totalIncome,
                     trackingDaysElapsed: trackingDaysElapsed,
                     dailyAllowance: dailyAllowance,
+                    jarEarliestDate: jarEarliestDate,
                   ),
                   if (!survivalMode) ...[
                     const SizedBox(height: 24),

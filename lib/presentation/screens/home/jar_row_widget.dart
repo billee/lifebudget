@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'jar_card_widget.dart';
@@ -10,6 +11,7 @@ class JarRowWidget extends StatelessWidget {
   final double totalIncome;
   final int trackingDaysElapsed;
   final double dailyAllowance;
+  final Map<String, DateTime> jarEarliestDate;
 
   const JarRowWidget({
     super.key,
@@ -18,6 +20,7 @@ class JarRowWidget extends StatelessWidget {
     required this.totalIncome,
     required this.trackingDaysElapsed,
     required this.dailyAllowance,
+    this.jarEarliestDate = const {},
   });
 
   @override
@@ -41,11 +44,24 @@ class JarRowWidget extends StatelessWidget {
           double? actualAverage;
           String? monthlyStatus;
 
+          // Use jar-specific days elapsed for daily average
+          final jarFirstDate = jarEarliestDate[key];
+          final today = DateTime.now();
+          final todayMidnight = DateTime(today.year, today.month, today.day);
+          final jarDaysElapsed = jarFirstDate != null
+              ? max(
+                  1,
+                  todayMidnight
+                          .difference(DateTime(jarFirstDate.year,
+                              jarFirstDate.month, jarFirstDate.day))
+                          .inDays +
+                      1)
+              : trackingDaysElapsed;
+
           switch (exp.frequency) {
             case 'daily':
-              actualAverage = trackingDaysElapsed > 0
-                  ? actualSpent / trackingDaysElapsed
-                  : null;
+              actualAverage =
+                  jarDaysElapsed > 0 ? actualSpent / jarDaysElapsed : null;
               overBudgetRatio = (plannedAmount > 0 && actualAverage != null)
                   ? actualAverage / plannedAmount
                   : 1.0;
