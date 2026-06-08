@@ -16,7 +16,7 @@ class LogExpenseScreen extends ConsumerStatefulWidget {
 
 class _LogExpenseScreenState extends ConsumerState<LogExpenseScreen> {
   final _amountController = TextEditingController();
-  String? _selectedJar; // will be set when data loads
+  String? _selectedJar;
   final _noteController = TextEditingController();
 
   @override
@@ -46,7 +46,7 @@ class _LogExpenseScreenState extends ConsumerState<LogExpenseScreen> {
 
     final transaction = TransactionModel(
       type: 'expense',
-      jar: _selectedJar!.toLowerCase(), // always save in lowercase
+      jar: _selectedJar!.toLowerCase(),
       amount: amount,
       date: DateTime.now(),
       note: _noteController.text.trim().isEmpty
@@ -88,18 +88,34 @@ class _LogExpenseScreenState extends ConsumerState<LogExpenseScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),
         data: (expenses) {
-          // Build list of titles from expected expenses
-          final titles = expenses.map((e) => e.title).toList();
+          // --- Deduplicate titles (keep first occurrence order) ---
+          final uniqueTitles = <String>[];
+          final seen = <String>{};
+          for (final e in expenses) {
+            final title = e.title;
+            if (seen.add(title)) uniqueTitles.add(title);
+          }
 
-          // If we haven't selected a jar yet, default to the first title
-          if (_selectedJar == null && titles.isNotEmpty) {
-            // Use addPostFrameCallback to avoid calling setState during build
+          // If no categories exist, show a helpful message
+          if (uniqueTitles.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Text(
+                  'No expense categories found.\nAdd some in Profile → Your Expected Expenses.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
+            );
+          }
+
+          // Ensure selectedJar is valid
+          if (_selectedJar == null || !uniqueTitles.contains(_selectedJar)) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 setState(() {
-                  if (_selectedJar == null && titles.isNotEmpty) {
-                    _selectedJar = titles.first;
-                  }
+                  _selectedJar = uniqueTitles.first;
                 });
               }
             });
@@ -129,7 +145,7 @@ class _LogExpenseScreenState extends ConsumerState<LogExpenseScreen> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: _selectedJar,
-                  items: titles.map((title) {
+                  items: uniqueTitles.map((title) {
                     return DropdownMenuItem(
                       value: title,
                       child: Text(title),

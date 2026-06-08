@@ -44,7 +44,7 @@ class DailyAllowanceCard extends StatelessWidget {
                       ),
                 ),
                 Text(
-                  '($daysLeft days left this month)',
+                  '${formatAmount(dailyAllowance * daysLeft)} for the rest of the month ($daysLeft days left)',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
                       ),

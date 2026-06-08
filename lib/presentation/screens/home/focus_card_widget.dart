@@ -47,15 +47,16 @@ class FocusCardWidget extends StatelessWidget {
       }
 
       // Append daily allowance info
+      final totalForMonth = dailyAllowance * daysLeft;
       if (dailyAllowance <= 0) {
         message +=
             "\n\nYour planned expenses cover all your income — every peso has a job.";
       } else if (dailyAllowance < 100) {
         message +=
-            "\n\nYou have ${formatAmount(dailyAllowance)} left per day. Small amounts add up.";
+            "\n\nYou have ${formatAmount(dailyAllowance)}/day (${formatAmount(totalForMonth)} for the rest of the month). Small amounts add up.";
       } else {
         message +=
-            "\n\nWith ${formatAmount(dailyAllowance)} a day, you've got breathing room.";
+            "\n\nWith ${formatAmount(dailyAllowance)}/day (${formatAmount(totalForMonth)} for the rest of the month), you've got breathing room.";
       }
     }
 

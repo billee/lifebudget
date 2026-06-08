@@ -50,4 +50,45 @@ class ExpectedExpenseRepository {
       whereArgs: [title],
     );
   }
+
+  // Upsert "Safely Spend" expense (creates or updates based on calculation)
+  Future<void> upsertSafelySpend(double amount, String month) async {
+    final db = await _dbHelper.database;
+
+    // Find all existing Safely Spend rows for this month
+    final existing = await db.query(
+      DatabaseConstants.expectedExpensesTable,
+      where: 'LOWER(title) = ? AND month = ?',
+      whereArgs: ['safely spend', month],
+    );
+
+    if (existing.length > 1) {
+      // Delete all but the first one
+      final idsToDelete =
+          existing.skip(1).map((row) => row['id'] as int).toList();
+      await db.delete(
+        DatabaseConstants.expectedExpensesTable,
+        where: 'id IN (${idsToDelete.map((_) => '?').join(',')})',
+        whereArgs: idsToDelete,
+      );
+    }
+
+    if (existing.isNotEmpty) {
+      // Update the first (remaining) row
+      await db.update(
+        DatabaseConstants.expectedExpensesTable,
+        {'amount': amount},
+        where: 'id = ?',
+        whereArgs: [existing.first['id']],
+      );
+    } else {
+      // Insert new
+      await db.insert(DatabaseConstants.expectedExpensesTable, {
+        'title': 'Safely Spend',
+        'frequency': 'monthly',
+        'amount': amount,
+        'month': month,
+      });
+    }
+  }
 }

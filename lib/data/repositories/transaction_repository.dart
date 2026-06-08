@@ -31,27 +31,29 @@ class TransactionRepository {
   // N+1‑free summary: returns total spent per jar and total income
   Future<Map<String, double>> getJarSummaries() async {
     final db = await _dbHelper.database;
-    // One query to get sum of expenses per jar (excluding _deduction jars)
+    // One query to get sum of expenses per jar (excluding _deduction and safely_spend jars)
     final expenseResult = await db.rawQuery('''
       SELECT ${DatabaseConstants.colJar}, SUM(${DatabaseConstants.colAmount}) as total
       FROM ${DatabaseConstants.transactionsTable}
       WHERE ${DatabaseConstants.colType} IN ('expense', 'savings')
         AND ${DatabaseConstants.colJar} NOT LIKE '%_deduction'
+        AND LOWER(${DatabaseConstants.colJar}) != 'safely spend'
       GROUP BY ${DatabaseConstants.colJar}
     ''');
 
-    // One query to get total income minus deductions
+    // One query to get total income
     final incomeResult = await db.rawQuery('''
       SELECT COALESCE(SUM(${DatabaseConstants.colAmount}), 0) as total
       FROM ${DatabaseConstants.transactionsTable}
       WHERE ${DatabaseConstants.colType} = 'income'
     ''');
 
+    // Query to get total deductions (both _deduction jars and safely_spend)
     final deductionResult = await db.rawQuery('''
       SELECT COALESCE(SUM(${DatabaseConstants.colAmount}), 0) as total
       FROM ${DatabaseConstants.transactionsTable}
       WHERE ${DatabaseConstants.colType} = 'expense'
-        AND ${DatabaseConstants.colJar} LIKE '%_deduction'
+        AND (${DatabaseConstants.colJar} LIKE '%_deduction' OR LOWER(${DatabaseConstants.colJar}) = 'safely spend')
     ''');
 
     final Map<String, double> summaries = {};
@@ -61,12 +63,22 @@ class TransactionRepository {
       summaries[jar] = total;
     }
 
-    // Income minus deductions
+    // Income minus deductions (both budget deletions and safely spend expenses)
     final totalIncome =
         (incomeResult.first['total'] as num?)?.toDouble() ?? 0.0;
     final totalDeductions =
         (deductionResult.first['total'] as num?)?.toDouble() ?? 0.0;
     summaries['__total_income__'] = totalIncome - totalDeductions;
+
+    // Also store safely_spend total separately for UI display
+    final safelySpendResult = await db.rawQuery('''
+      SELECT COALESCE(SUM(${DatabaseConstants.colAmount}), 0) as total
+      FROM ${DatabaseConstants.transactionsTable}
+      WHERE ${DatabaseConstants.colType} = 'expense'
+        AND LOWER(${DatabaseConstants.colJar}) = 'safely spend'
+    ''');
+    summaries['__safely_spend_spent__'] =
+        (safelySpendResult.first['total'] as num?)?.toDouble() ?? 0.0;
 
     return summaries;
   }

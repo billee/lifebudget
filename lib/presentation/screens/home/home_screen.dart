@@ -11,6 +11,7 @@ import 'goals_preview.dart';
 import 'celebration_overlay.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/expected_expenses_provider.dart';
+import '../../../data/models/expected_expense_model.dart';
 import '../../providers/slip_up_provider.dart';
 import '../../providers/milestone_provider.dart';
 import '../../providers/goal_provider.dart';
@@ -56,28 +57,33 @@ class HomeScreen extends ConsumerWidget {
     final now = DateTime.now();
     double totalIncome = 0;
     double totalSpent = 0;
+    double safelySpendSpent = 0;
+    double deductionSpent = 0;
     final Map<String, double> jarSpent = {};
-    final Map<String, DateTime> jarEarliestDate =
-        {}; // per-jar first expense date
+    final Map<String, DateTime> jarEarliestDate = {};
     DateTime? earliestDate;
     final currentMonth = DateTime(now.year, now.month, 1);
 
     for (final t in transactions) {
-      // Only count current-month transactions for jar averages & totals
       if (t.date.isBefore(currentMonth)) continue;
 
       if (t.type == 'income') {
         totalIncome += t.amount;
       } else {
-        totalSpent += t.amount;
-        var jar = t.jar.toLowerCase();
-        // Normalize legacy goal jar names: 'goal_tv' → 'tv'
-        if (jar.startsWith('goal_')) jar = jar.substring(5);
-        jarSpent[jar] = (jarSpent[jar] ?? 0) + t.amount;
-        // Track earliest date per jar
-        if (!jarEarliestDate.containsKey(jar) ||
-            t.date.isBefore(jarEarliestDate[jar]!)) {
-          jarEarliestDate[jar] = t.date;
+        final jarLower = t.jar.toLowerCase();
+        if (jarLower == 'safely spend') {
+          safelySpendSpent += t.amount;
+        } else if (jarLower.endsWith('_deduction')) {
+          deductionSpent += t.amount;
+        } else {
+          totalSpent += t.amount;
+          var jar = jarLower;
+          if (jar.startsWith('goal_')) jar = jar.substring(5);
+          jarSpent[jar] = (jarSpent[jar] ?? 0) + t.amount;
+          if (!jarEarliestDate.containsKey(jar) ||
+              t.date.isBefore(jarEarliestDate[jar]!)) {
+            jarEarliestDate[jar] = t.date;
+          }
         }
       }
       if (earliestDate == null || t.date.isBefore(earliestDate)) {
@@ -85,7 +91,9 @@ class HomeScreen extends ConsumerWidget {
       }
     }
 
-    double leftAmount = totalIncome - totalSpent;
+    // Effective income subtracts safely spend and deductions
+    final effectiveIncome = totalIncome - safelySpendSpent - deductionSpent;
+    double leftAmount = effectiveIncome - totalSpent;
     if (leftAmount < 0) leftAmount = 0;
 
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
@@ -96,17 +104,22 @@ class HomeScreen extends ConsumerWidget {
         max(1, now.difference(trackingStartDate).inDays + 1);
 
     // ---- Planned allocations (monthly) ----
+    // Filter out 'Safely Spend' from calculations (it's a derived value, not a real allocation)
+    final realExpenses = expectedExpenses
+        .where((e) => e.title.toLowerCase() != 'safely spend')
+        .toList();
+
     final workingList = survivalMode
-        ? expectedExpenses
+        ? realExpenses
             .where((e) => ['food', 'transport', 'rent', 'utilities']
                 .contains(e.title.toLowerCase()))
             .where((e) => e.amount > 0)
             .toList()
-        : expectedExpenses.where((e) => e.amount > 0).toList();
+        : realExpenses.where((e) => e.amount > 0).toList();
 
     double plannedMonthlyTotal = 0;
-    for (final exp in expectedExpenses) {
-      // planned total is always based on full list, survival doesn't change the math
+    for (final exp in realExpenses) {
+      // planned total is always based on full list (excluding Safely Spend), survival doesn't change the math
       switch (exp.frequency) {
         case 'daily':
           plannedMonthlyTotal += exp.amount * daysInMonth;
@@ -120,13 +133,33 @@ class HomeScreen extends ConsumerWidget {
       }
     }
 
-    double freeMoney = totalIncome - plannedMonthlyTotal;
+    double freeMoney = effectiveIncome - plannedMonthlyTotal;
     if (freeMoney < 0) freeMoney = 0;
 
     final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
     final daysLeft = lastDayOfMonth.difference(now).inDays + 1;
     final double dailyAllowance =
         (freeMoney <= 0 || daysLeft <= 0) ? 0.0 : freeMoney / daysLeft;
+
+    // Safely Spend amount (displayed in its own section, not in envelope row)
+    final safelySpendAmount = dailyAllowance * daysLeft;
+    final monthStr = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
+    if (safelySpendAmount > 0) {
+      // Sync to database only if amount changed significantly (avoid redundant writes)
+      final existingSafelySpend = expectedExpenses
+          .where((e) =>
+              e.title.toLowerCase() == 'safely spend' && e.month == monthStr)
+          .firstOrNull;
+
+      if (existingSafelySpend == null ||
+          (existingSafelySpend.amount - safelySpendAmount).abs() > 1.0) {
+        Future.microtask(() async {
+          final repo = ref.read(expectedExpenseRepositoryProvider);
+          await repo.upsertSafelySpend(safelySpendAmount, monthStr);
+        });
+      }
+    }
 
     // ---- Overspent analysis (using tracking days) ----
     String? mostOverspentCategory;
@@ -208,7 +241,7 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   HealthRingWidget(
                     leftAmount: leftAmount,
-                    totalBudget: totalIncome,
+                    totalBudget: effectiveIncome,
                   ),
                   const SizedBox(height: 16),
                   DailyAllowanceCard(
@@ -220,7 +253,7 @@ class HomeScreen extends ConsumerWidget {
                   JarRowWidget(
                     expectedExpenses: workingList,
                     jarSpent: jarSpent,
-                    totalIncome: totalIncome,
+                    totalIncome: effectiveIncome,
                     trackingDaysElapsed: trackingDaysElapsed,
                     dailyAllowance: dailyAllowance,
                     jarEarliestDate: jarEarliestDate,
@@ -232,6 +265,14 @@ class HomeScreen extends ConsumerWidget {
                   if (!survivalMode) ...[
                     const SizedBox(height: 24),
                     const GoalsPreview(),
+                    if (safelySpendAmount > 0) ...[
+                      const SizedBox(height: 24),
+                      _SafelySpendSection(
+                        budget: safelySpendAmount,
+                        spent: safelySpendSpent,
+                        daysLeft: daysLeft,
+                      ),
+                    ],
                     if (goalsAsync.valueOrNull?.any((g) => !g.isCompleted) ==
                         true)
                       const SizedBox(height: 24),
@@ -256,6 +297,114 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SafelySpendSection extends StatelessWidget {
+  final double budget;
+  final double spent;
+  final int daysLeft;
+
+  const _SafelySpendSection({
+    required this.budget,
+    required this.spent,
+    required this.daysLeft,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = budget - spent;
+    final progress = budget > 0 ? (spent / budget).clamp(0.0, 1.0) : 0.0;
+    final perDay = daysLeft > 0 ? remaining / daysLeft : 0.0;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.account_balance_wallet,
+                  size: 20, color: AppColors.primary),
+              const SizedBox(width: 8),
+              const Text(
+                'Safely Spend',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${formatAmount(perDay)}/day',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Progress bar
+          Container(
+            height: 14,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: progress,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: progress >= 0.9
+                        ? AppColors.critical
+                        : AppColors.primary,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Spent: ${formatAmount(spent)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                'Budget: ${formatAmount(budget)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Remaining: ${formatAmount(remaining > 0 ? remaining : 0)}',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: remaining > 0 ? AppColors.onTrack : AppColors.critical,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

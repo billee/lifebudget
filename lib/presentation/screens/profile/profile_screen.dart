@@ -422,12 +422,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit,
-                                  color: AppColors.primary),
-                              onPressed: () => _edit(exp),
-                            ),
-                            if (exp.amount > 0)
+                            if (exp.title.toLowerCase() != 'safely spend')
+                              IconButton(
+                                icon: const Icon(Icons.edit,
+                                    color: AppColors.primary),
+                                onPressed: () => _edit(exp),
+                              ),
+                            if (exp.amount > 0 &&
+                                exp.title.toLowerCase() != 'safely spend')
                               IconButton(
                                 icon: const Icon(Icons.delete,
                                     color: AppColors.critical),
