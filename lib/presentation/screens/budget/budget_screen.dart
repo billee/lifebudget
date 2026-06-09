@@ -32,9 +32,12 @@ class BudgetScreen extends ConsumerWidget {
 
           double totalSpent = 0;
           for (final entry in summaries.entries) {
-            if (entry.key == '__total_income__') continue;
+            // Skip special keys (they start with __)
+            if (entry.key.startsWith('__')) continue;
             totalSpent += entry.value;
           }
+          // Add safely spend to total spent (it was actually spent)
+          totalSpent += summaries['__safely_spend_spent__'] ?? 0.0;
 
           return Column(
             children: [
