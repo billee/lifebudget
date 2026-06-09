@@ -8,7 +8,6 @@ import 'focus_card_widget.dart';
 import 'home_header.dart';
 import 'daily_allowance_card.dart';
 import 'goals_preview.dart';
-import 'celebration_overlay.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/expected_expenses_provider.dart';
 import '../../../data/models/expected_expense_model.dart';
@@ -56,7 +55,7 @@ class HomeScreen extends ConsumerWidget {
     // ---- Totals ----
     final now = DateTime.now();
     double totalIncome = 0;
-    double totalSpent = 0;
+    double totalExpenses = 0; // all expenses (incl. safely spend & deductions)
     double safelySpendSpent = 0;
     double deductionSpent = 0;
     final Map<String, double> jarSpent = {};
@@ -70,13 +69,13 @@ class HomeScreen extends ConsumerWidget {
       if (t.type == 'income') {
         totalIncome += t.amount;
       } else {
+        totalExpenses += t.amount; // sum everything spent
         final jarLower = t.jar.toLowerCase();
         if (jarLower == 'safely spend') {
           safelySpendSpent += t.amount;
         } else if (jarLower.endsWith('_deduction')) {
           deductionSpent += t.amount;
         } else {
-          totalSpent += t.amount;
           var jar = jarLower;
           if (jar.startsWith('goal_')) jar = jar.substring(5);
           jarSpent[jar] = (jarSpent[jar] ?? 0) + t.amount;
@@ -91,9 +90,10 @@ class HomeScreen extends ConsumerWidget {
       }
     }
 
-    // Effective income subtracts safely spend and deductions
+    // Effective income for daily allowance calculation (unchanged)
     final effectiveIncome = totalIncome - safelySpendSpent - deductionSpent;
-    double leftAmount = effectiveIncome - totalSpent;
+    // Remaining amount shown in ring = total income minus all expenses
+    double leftAmount = totalIncome - totalExpenses;
     if (leftAmount < 0) leftAmount = 0;
 
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
@@ -104,7 +104,7 @@ class HomeScreen extends ConsumerWidget {
         max(1, now.difference(trackingStartDate).inDays + 1);
 
     // ---- Planned allocations (monthly) ----
-    // Filter out 'Safely Spend' from calculations (it's a derived value, not a real allocation)
+    // Filter out 'Safely Spend' from calculations (it's a derived value)
     final realExpenses = expectedExpenses
         .where((e) => e.title.toLowerCase() != 'safely spend')
         .toList();
@@ -119,7 +119,6 @@ class HomeScreen extends ConsumerWidget {
 
     double plannedMonthlyTotal = 0;
     for (final exp in realExpenses) {
-      // planned total is always based on full list (excluding Safely Spend), survival doesn't change the math
       switch (exp.frequency) {
         case 'daily':
           plannedMonthlyTotal += exp.amount * daysInMonth;
@@ -141,12 +140,11 @@ class HomeScreen extends ConsumerWidget {
     final double dailyAllowance =
         (freeMoney <= 0 || daysLeft <= 0) ? 0.0 : freeMoney / daysLeft;
 
-    // Safely Spend amount (displayed in its own section, not in envelope row)
+    // Safely Spend amount (displayed in its own section)
     final safelySpendAmount = dailyAllowance * daysLeft;
     final monthStr = '${now.year}-${now.month.toString().padLeft(2, '0')}';
 
     if (safelySpendAmount > 0) {
-      // Sync to database only if amount changed significantly (avoid redundant writes)
       final existingSafelySpend = expectedExpenses
           .where((e) =>
               e.title.toLowerCase() == 'safely spend' && e.month == monthStr)
@@ -157,6 +155,7 @@ class HomeScreen extends ConsumerWidget {
         Future.microtask(() async {
           final repo = ref.read(expectedExpenseRepositoryProvider);
           await repo.upsertSafelySpend(safelySpendAmount, monthStr);
+          ref.invalidate(expectedExpensesProvider); // keep Profile page in sync
         });
       }
     }
@@ -241,7 +240,7 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   HealthRingWidget(
                     leftAmount: leftAmount,
-                    totalBudget: effectiveIncome,
+                    totalBudget: totalIncome, // now shows total monthly income
                   ),
                   const SizedBox(height: 16),
                   DailyAllowanceCard(
@@ -249,7 +248,6 @@ class HomeScreen extends ConsumerWidget {
                     daysLeft: daysLeft,
                   ),
                   const SizedBox(height: 16),
-                  // Jar row – survival mode shows essentials only
                   JarRowWidget(
                     expectedExpenses: workingList,
                     jarSpent: jarSpent,
@@ -271,6 +269,7 @@ class HomeScreen extends ConsumerWidget {
                         budget: safelySpendAmount,
                         spent: safelySpendSpent,
                         daysLeft: daysLeft,
+                        dailyAllowance: dailyAllowance,
                       ),
                     ],
                   ],
@@ -289,18 +288,19 @@ class _SafelySpendSection extends StatelessWidget {
   final double budget;
   final double spent;
   final int daysLeft;
+  final double dailyAllowance;
 
   const _SafelySpendSection({
     required this.budget,
     required this.spent,
     required this.daysLeft,
+    required this.dailyAllowance,
   });
 
   @override
   Widget build(BuildContext context) {
     final remaining = budget - spent;
     final progress = budget > 0 ? (spent / budget).clamp(0.0, 1.0) : 0.0;
-    final perDay = daysLeft > 0 ? remaining / daysLeft : 0.0;
 
     return Container(
       width: double.infinity,
@@ -327,7 +327,7 @@ class _SafelySpendSection extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                '${formatAmount(perDay)}/day',
+                '${formatAmount(dailyAllowance)}/day',
                 style: const TextStyle(
                   fontSize: 13,
                   color: AppColors.textSecondary,
@@ -336,7 +336,6 @@ class _SafelySpendSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          // Progress bar
           Container(
             height: 14,
             decoration: BoxDecoration(

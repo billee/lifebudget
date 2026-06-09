@@ -63,12 +63,14 @@ class TransactionRepository {
       summaries[jar] = total;
     }
 
-    // Income minus deductions (both budget deletions and safely spend expenses)
+    // Store both raw income and effective income (after deductions)
     final totalIncome =
         (incomeResult.first['total'] as num?)?.toDouble() ?? 0.0;
     final totalDeductions =
         (deductionResult.first['total'] as num?)?.toDouble() ?? 0.0;
-    summaries['__total_income__'] = totalIncome - totalDeductions;
+    summaries['__total_income__'] = totalIncome; // Raw total income for display
+    summaries['__effective_income__'] =
+        totalIncome - totalDeductions; // For calculations
 
     // Also store safely_spend total separately for UI display
     final safelySpendResult = await db.rawQuery('''
