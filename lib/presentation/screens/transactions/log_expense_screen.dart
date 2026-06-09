@@ -6,6 +6,8 @@ import '../../providers/transaction_provider.dart';
 import '../../providers/expected_expenses_provider.dart';
 import '../../widgets/common/ad_banner_widget.dart';
 import '../../widgets/common/app_menu_button.dart';
+import '../../providers/safely_spend_provider.dart';
+import '../../../core/utils/number_formatter.dart';
 
 class LogExpenseScreen extends ConsumerStatefulWidget {
   const LogExpenseScreen({super.key});
@@ -44,6 +46,23 @@ class _LogExpenseScreenState extends ConsumerState<LogExpenseScreen> {
       return;
     }
 
+    // --- Safely Spend validation ---
+    if (_selectedJar!.toLowerCase() == 'safely spend') {
+      final remaining = await ref.read(safelySpendRemainingProvider.future);
+      if (amount > remaining) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'You only have ${formatAmount(remaining)} left for safely spend this month.',
+            ),
+            backgroundColor: AppColors.critical,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Proceed with saving...
     final transaction = TransactionModel(
       type: 'expense',
       jar: _selectedJar!.toLowerCase(),

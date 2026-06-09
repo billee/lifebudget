@@ -157,7 +157,6 @@ class HomeScreen extends ConsumerWidget {
         Future.microtask(() async {
           final repo = ref.read(expectedExpenseRepositoryProvider);
           await repo.upsertSafelySpend(safelySpendAmount, monthStr);
-          ref.invalidate(expectedExpensesProvider);
         });
       }
     }
@@ -274,22 +273,6 @@ class HomeScreen extends ConsumerWidget {
                         daysLeft: daysLeft,
                       ),
                     ],
-                    if (goalsAsync.valueOrNull?.any((g) => !g.isCompleted) ==
-                        true)
-                      const SizedBox(height: 24),
-                    if (milestone != null)
-                      CelebrationOverlay(
-                        milestone: milestone,
-                        onDismiss: () async {
-                          final prefs = await SharedPreferences.getInstance();
-                          final shown =
-                              prefs.getStringList('shown_milestones') ?? [];
-                          shown.add(milestone.id);
-                          await prefs.setStringList('shown_milestones', shown);
-                          ref.invalidate(newMilestoneProvider);
-                          ref.invalidate(shownMilestonesProvider);
-                        },
-                      ),
                   ],
                   const SizedBox(height: 100),
                 ],
