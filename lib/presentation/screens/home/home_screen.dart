@@ -157,6 +157,7 @@ class HomeScreen extends ConsumerWidget {
         Future.microtask(() async {
           final repo = ref.read(expectedExpenseRepositoryProvider);
           await repo.upsertSafelySpend(safelySpendAmount, monthStr);
+          ref.invalidate(expectedExpensesProvider);
         });
       }
     }

@@ -59,6 +59,7 @@ class _LogExpenseScreenState extends ConsumerState<LogExpenseScreen> {
 
     ref.invalidate(jarSummariesProvider);
     ref.invalidate(allTransactionsProvider);
+    ref.invalidate(expectedExpensesProvider);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
