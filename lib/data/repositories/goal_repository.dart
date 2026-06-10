@@ -1,3 +1,4 @@
+import 'package:sqflite/sqflite.dart';
 import '../database/database_helper.dart';
 import '../database/database_constants.dart';
 import '../models/goal_model.dart';
@@ -5,18 +6,22 @@ import '../models/goal_model.dart';
 class GoalRepository {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
+  Future<int> insert(Goal goal) async {
+    final db = await _dbHelper.database;
+    return await db.insert(
+      DatabaseConstants.goalsTable,
+      goal.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
   Future<List<Goal>> getAll() async {
     final db = await _dbHelper.database;
     final maps = await db.query(
       DatabaseConstants.goalsTable,
-      orderBy: 'created_date DESC',
+      orderBy: 'createdDate DESC',
     );
-    return maps.map((m) => Goal.fromMap(m)).toList();
-  }
-
-  Future<int> insert(Goal goal) async {
-    final db = await _dbHelper.database;
-    return await db.insert(DatabaseConstants.goalsTable, goal.toMap());
+    return maps.map((map) => Goal.fromMap(map)).toList();
   }
 
   Future<int> update(Goal goal) async {

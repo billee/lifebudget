@@ -19,14 +19,14 @@ class DatabaseHelper {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 4, // <--- bump version every time schema changes
+      version: 5, // <--- version bumped because schema changed
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
   }
 
   Future<void> _createDB(Database db, int version) async {
-    // Use IF NOT EXISTS to avoid errors when table already exists
+    // transactions table
     await db.execute('''
       CREATE TABLE IF NOT EXISTS ${DatabaseConstants.transactionsTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,6 +38,7 @@ class DatabaseHelper {
       )
     ''');
 
+    // jar allocations table (unused but kept)
     await db.execute('''
       CREATE TABLE IF NOT EXISTS ${DatabaseConstants.jarAllocationsTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,6 +48,7 @@ class DatabaseHelper {
       )
     ''');
 
+    // expected expenses table
     await db.execute('''
       CREATE TABLE IF NOT EXISTS ${DatabaseConstants.expectedExpensesTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,6 +59,7 @@ class DatabaseHelper {
       )
     ''');
 
+    // slip‑ups table
     await db.execute('''
       CREATE TABLE IF NOT EXISTS ${DatabaseConstants.slipUpsTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,6 +70,7 @@ class DatabaseHelper {
       )
     ''');
 
+    // archived transactions table
     await db.execute('''
       CREATE TABLE IF NOT EXISTS ${DatabaseConstants.archivedTransactionsTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,6 +83,7 @@ class DatabaseHelper {
       )
     ''');
 
+    // journal table
     await db.execute('''
       CREATE TABLE IF NOT EXISTS ${DatabaseConstants.journalTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,22 +94,22 @@ class DatabaseHelper {
       )
     ''');
 
+    // goals table – updated schema without daily_amount, using camelCase columns
     await db.execute('''
       CREATE TABLE IF NOT EXISTS ${DatabaseConstants.goalsTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
-        target_amount REAL NOT NULL,
-        current_amount REAL NOT NULL DEFAULT 0,
-        daily_amount REAL NOT NULL DEFAULT 0,
+        targetAmount REAL NOT NULL,
+        currentAmount REAL NOT NULL DEFAULT 0,
         emoji TEXT NOT NULL,
-        is_completed INTEGER NOT NULL DEFAULT 0,
-        created_date TEXT NOT NULL
+        isCompleted INTEGER NOT NULL DEFAULT 0,
+        createdDate TEXT NOT NULL
       )
     ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
-    // Migration: add jar_allocations table if missing (added in v4)
+    // Migration for version 4 (if you had it)
     if (oldVersion < 4) {
       await db.execute('''
         CREATE TABLE IF NOT EXISTS ${DatabaseConstants.jarAllocationsTable} (
@@ -112,6 +117,24 @@ class DatabaseHelper {
           ${DatabaseConstants.colMonth} TEXT NOT NULL,
           ${DatabaseConstants.colJarName} TEXT NOT NULL,
           ${DatabaseConstants.colPercentage} REAL NOT NULL
+        )
+      ''');
+    }
+
+    // Migration for version 5: drop old goals table (if it exists with old schema) and recreate
+    if (oldVersion < 5) {
+      // To avoid losing existing goals, we could rename table, but during development it's simpler to drop.
+      // For production, you would write a proper migration. Here we drop and recreate.
+      await db.execute('DROP TABLE IF EXISTS ${DatabaseConstants.goalsTable}');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS ${DatabaseConstants.goalsTable} (
+          ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          targetAmount REAL NOT NULL,
+          currentAmount REAL NOT NULL DEFAULT 0,
+          emoji TEXT NOT NULL,
+          isCompleted INTEGER NOT NULL DEFAULT 0,
+          createdDate TEXT NOT NULL
         )
       ''');
     }
