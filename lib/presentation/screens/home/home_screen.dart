@@ -20,7 +20,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/emotional_messages.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../goals/goal_celebrate_screen.dart';
-import 'goals_preview.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -104,6 +103,14 @@ class HomeScreen extends ConsumerWidget {
     final realExpenses = expectedExpenses
         .where((e) => e.title.toLowerCase() != 'safely spend')
         .toList();
+
+    // Get goal titles for filtering (case-insensitive)
+    final goalTitlesSet = goals.map((g) => g.title.toLowerCase()).toSet();
+
+    // Exclude any expected expense that matches a goal title
+    final filteredExpenses = realExpenses.where((exp) {
+      return !goalTitlesSet.contains(exp.title.toLowerCase());
+    }).toList();
 
     final workingList = survivalMode
         ? realExpenses
@@ -226,11 +233,6 @@ class HomeScreen extends ConsumerWidget {
                     trackingDaysElapsed: trackingDaysElapsed,
                     jarEarliestDate: jarEarliestDate,
                   ),
-                  const SizedBox(height: 24),
-
-                  // Goals preview (separate section)
-                  const GoalsPreview(),
-
                   const SizedBox(height: 24),
                   if (!survivalMode && safelySpendAmount > 0) ...[
                     const SizedBox(height: 24),

@@ -67,7 +67,7 @@ class JarRowWidget extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '₱${spent.toStringAsFixed(0)}',
+                  formatAmount(spent),
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
@@ -153,7 +153,7 @@ class JarRowWidget extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '₱${spent.toStringAsFixed(0)}',
+                  formatAmount(spent),
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
