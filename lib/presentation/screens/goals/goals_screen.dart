@@ -22,7 +22,8 @@ class GoalsScreen extends ConsumerStatefulWidget {
 class _GoalsScreenState extends ConsumerState<GoalsScreen> {
   final _titleController = TextEditingController();
   final _targetController = TextEditingController();
-  final _dailyController = TextEditingController();
+  final _monthlyController =
+      TextEditingController(); // monthly allocation (expected expense)
   String _selectedEmoji = '💰';
   int? _editingId;
 
@@ -43,159 +44,92 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
   void dispose() {
     _titleController.dispose();
     _targetController.dispose();
-    _dailyController.dispose();
+    _monthlyController.dispose();
     super.dispose();
   }
 
   void _clearForm() {
     _titleController.clear();
     _targetController.clear();
-    _dailyController.clear();
+    _monthlyController.clear();
     setState(() {
       _selectedEmoji = '💰';
       _editingId = null;
     });
   }
 
-  double _computeDailyAllowance() {
-    final transactions = ref.read(allTransactionsProvider).valueOrNull ?? [];
-    final expectedExpenses =
-        ref.read(expectedExpensesProvider).valueOrNull ?? [];
-
-    double income = 0;
-    double spent = 0;
-    for (final t in transactions) {
-      if (t.type == 'income') {
-        income += t.amount;
-      } else {
-        spent += t.amount;
-      }
-    }
-
-    final now = DateTime.now();
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    double allocated = 0;
-    for (final exp in expectedExpenses) {
-      switch (exp.frequency) {
-        case 'daily':
-          allocated += exp.amount * daysInMonth;
-          break;
-        case 'weekly':
-          allocated += exp.amount * (daysInMonth / 7);
-          break;
-        case 'monthly':
-          allocated += exp.amount;
-          break;
-      }
-    }
-
-    double free = income - allocated;
-    if (free < 0) free = 0;
-    final daysLeft =
-        DateTime(now.year, now.month + 1, 0).difference(now).inDays + 1;
-    return daysLeft > 0 ? free / daysLeft : free;
-  }
-
-  Future<Goal?> _getGoal(int id) async {
-    final goals = await ref.read(goalsProvider.future);
-    return goals
-        .cast<Goal?>()
-        .firstWhere((g) => g!.id == id, orElse: () => null);
-  }
-
   Future<void> _save() async {
     final title = _titleController.text.trim();
     final targetText = _targetController.text.trim();
-    final dailyText = _dailyController.text.trim();
+    final monthlyText = _monthlyController.text.trim();
 
-    if (title.isEmpty || targetText.isEmpty || dailyText.isEmpty) return;
+    if (title.isEmpty || targetText.isEmpty || monthlyText.isEmpty) return;
     final target = double.tryParse(targetText);
-    final dailyAmount = double.tryParse(dailyText);
+    final monthlyAmount = double.tryParse(monthlyText);
     if (target == null ||
-        dailyAmount == null ||
+        monthlyAmount == null ||
         target <= 0 ||
-        dailyAmount <= 0) {
+        monthlyAmount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Enter valid amounts')),
       );
       return;
     }
 
-    final allowance = _computeDailyAllowance();
-    if (dailyAmount > allowance) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Daily save (${formatAmount(dailyAmount)}) cannot exceed your safe spend (${formatAmount(allowance)})'),
-          backgroundColor: AppColors.warning,
-        ),
-      );
-      return;
-    }
-
     final goalRepo = ref.read(goalRepositoryProvider);
     final expectedRepo = ref.read(expectedExpenseRepositoryProvider);
-    final transactionRepo = ref.read(transactionRepositoryProvider);
     final month =
         '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
 
     if (_editingId == null) {
+      // Create Goal
       final goal = Goal(
         title: title,
         targetAmount: target,
-        currentAmount: dailyAmount,
-        dailyAmount: dailyAmount,
+        currentAmount: 0.0,
         emoji: _selectedEmoji,
-        isCompleted: dailyAmount >= target,
+        isCompleted: false,
         createdDate: DateTime.now(),
       );
       await goalRepo.insert(goal);
 
+      // Create Expected Expense (monthly frequency) for the goal
       final expectedExpense = ExpectedExpense(
         title: title,
-        frequency: 'daily',
-        amount: dailyAmount,
+        frequency: 'monthly',
+        amount: monthlyAmount,
         month: month,
       );
       await expectedRepo.insert(expectedExpense);
 
-      final transaction = TransactionModel(
-        type: 'savings',
-        jar: title.toLowerCase(),
-        amount: dailyAmount,
-        date: DateTime.now(),
-        note: 'Daily savings toward $title',
-      );
-      await transactionRepo.insertTransaction(transaction);
-
-      if (goal.isCompleted && mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => GoalCelebrateScreen(
-            goalTitle: title,
-            emoji: _selectedEmoji,
-          ),
-        );
-      }
+      // No automatic transaction – user will add money manually
     } else {
+      // Edit existing goal
       final existingGoal = await _getGoal(_editingId!);
       if (existingGoal != null) {
         final updated = existingGoal.copyWith(
           title: title,
           targetAmount: target,
-          dailyAmount: dailyAmount,
           emoji: _selectedEmoji,
         );
         await goalRepo.update(updated);
 
-        // Replace expected expense
-        await expectedRepo.deleteByTitle(updated.title);
-        await expectedRepo.insert(ExpectedExpense(
-          title: updated.title,
-          frequency: 'daily',
-          amount: dailyAmount,
-          month: month,
-        ));
+        // Update expected expense (monthly amount)
+        final allExpenses = await expectedRepo.getForMonth(month);
+        for (final exp in allExpenses) {
+          if (exp.title.toLowerCase().trim() ==
+              existingGoal.title.toLowerCase().trim()) {
+            final updatedExpense = ExpectedExpense(
+              id: exp.id,
+              title: title,
+              frequency: 'monthly',
+              amount: monthlyAmount,
+              month: month,
+            );
+            await expectedRepo.update(updatedExpense);
+            break;
+          }
+        }
       }
     }
 
@@ -208,11 +142,19 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Goal created! Daily savings added to your budget.'),
+          content: Text('Goal created! Monthly budget added.'),
           backgroundColor: AppColors.primary,
         ),
       );
     }
+  }
+
+  Future<Goal?> _getGoal(int id) async {
+    final goals = await ref.read(goalsProvider.future);
+    return goals.cast<Goal?>().firstWhere(
+          (g) => g!.id == id,
+          orElse: () => null,
+        );
   }
 
   Future<void> _addMoney(Goal goal) async {
@@ -220,7 +162,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
     final amount = await showDialog<double>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add extra savings'),
+        title: const Text('Add savings to goal'),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
@@ -250,13 +192,14 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
       final goalRepo = ref.read(goalRepositoryProvider);
       await goalRepo.update(updated);
 
+      // Log a savings transaction (type: savings, jar: goal_title)
       final transactionRepo = ref.read(transactionRepositoryProvider);
       await transactionRepo.insertTransaction(TransactionModel(
         type: 'savings',
         jar: goal.title.toLowerCase(),
         amount: amount,
         date: DateTime.now(),
-        note: 'Extra savings for ${goal.title}',
+        note: 'Manual savings for ${goal.title}',
       ));
 
       ref.invalidate(goalsProvider);
@@ -266,63 +209,62 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
       if (completed && mounted) {
         showDialog(
           context: context,
-          builder: (ctx) => GoalCelebrateScreen(
-            goalTitle: goal.title,
-            emoji: goal.emoji,
-          ),
+          builder: (ctx) =>
+              GoalCelebrateScreen(goalTitle: goal.title, emoji: goal.emoji),
         );
       }
     }
   }
 
-  void _edit(Goal goal) {
+  void _edit(Goal goal) async {
+    // Fetch its expected expense to get monthly amount
+    final month =
+        '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
+    final expectedRepo = ref.read(expectedExpenseRepositoryProvider);
+    final expenses = await expectedRepo.getForMonth(month);
+    double monthlyAmount = 0;
+    for (final exp in expenses) {
+      if (exp.title.toLowerCase().trim() == goal.title.toLowerCase().trim()) {
+        monthlyAmount = exp.amount;
+        break;
+      }
+    }
     setState(() {
       _editingId = goal.id;
       _titleController.text = goal.title;
       _targetController.text = goal.targetAmount.toStringAsFixed(0);
-      _dailyController.text = goal.dailyAmount.toStringAsFixed(0);
+      _monthlyController.text = monthlyAmount.toStringAsFixed(0);
       _selectedEmoji = goal.emoji;
     });
   }
 
-  Future<void> _delete(int id) async {
-    // Get the goal before deleting to know its title
+  Future<void> _delete(Goal goal) async {
+    final goalTitleLower = goal.title.toLowerCase().trim();
+    final expectedRepo = ref.read(expectedExpenseRepositoryProvider);
+    final transactionRepo = ref.read(transactionRepositoryProvider);
     final goalRepo = ref.read(goalRepositoryProvider);
-    final goals = await goalRepo.getAll();
-    final goal = goals.cast<Goal?>().firstWhere(
-          (g) => g!.id == id,
-          orElse: () => null,
-        );
+    final month =
+        '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
 
-    if (goal != null) {
-      final goalTitleLower = goal.title.toLowerCase().trim();
-
-      // Cascade delete: Goal + ExpectedExpense + Savings transactions
-      final expectedRepo = ref.read(expectedExpenseRepositoryProvider);
-      final transactionRepo = ref.read(transactionRepositoryProvider);
-
-      // 1. Find and delete matching ExpectedExpense by ID (case-insensitive)
-      final allExpenses = await expectedRepo.getForMonth(
-          '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}');
-      for (final exp in allExpenses) {
-        if (exp.title.toLowerCase().trim() == goalTitleLower) {
-          await expectedRepo.delete(exp.id!);
-          break;
-        }
+    // Delete expected expense
+    final expenses = await expectedRepo.getForMonth(month);
+    for (final exp in expenses) {
+      if (exp.title.toLowerCase().trim() == goalTitleLower) {
+        await expectedRepo.delete(exp.id!);
+        break;
       }
-
-      // 2. Delete all savings transactions for this goal's jar
-      await transactionRepo.deleteSavingsByJar(goalTitleLower);
-
-      // 3. Delete the Goal itself
-      await goalRepo.delete(id);
-
-      // Invalidate providers to refresh UI
-      ref.invalidate(goalsProvider);
-      ref.invalidate(expectedExpensesProvider);
-      ref.invalidate(allTransactionsProvider);
-      ref.invalidate(jarSummariesProvider);
     }
+
+    // Delete savings transactions for this goal
+    await transactionRepo.deleteSavingsByJar(goalTitleLower);
+
+    // Delete goal
+    await goalRepo.delete(goal.id!);
+
+    ref.invalidate(goalsProvider);
+    ref.invalidate(expectedExpensesProvider);
+    ref.invalidate(allTransactionsProvider);
+    ref.invalidate(jarSummariesProvider);
   }
 
   @override
@@ -370,11 +312,11 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _dailyController,
+              controller: _monthlyController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'Save per day',
-                hintText: 'Less than your safe daily spend',
+                labelText: 'Monthly budget for this goal',
+                hintText: 'How much you plan to save each month',
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12))),
                 filled: true,
@@ -390,9 +332,8 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                 return ChoiceChip(
                   label: Text(emoji),
                   selected: _selectedEmoji == emoji,
-                  onSelected: (selected) {
-                    setState(() => _selectedEmoji = emoji);
-                  },
+                  onSelected: (selected) =>
+                      setState(() => _selectedEmoji = emoji),
                   selectedColor: AppColors.primary.withOpacity(0.2),
                 );
               }).toList(),
@@ -437,18 +378,6 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                         style: TextStyle(color: AppColors.textSecondary)),
                   );
                 }
-
-                // Build a map of title (lowercase) -> daily amount from expected expenses
-                final expectedExpenses =
-                    ref.watch(expectedExpensesProvider).valueOrNull ?? [];
-                final expectedDailyAmounts = <String, double>{};
-                for (final exp in expectedExpenses) {
-                  if (exp.frequency == 'daily') {
-                    expectedDailyAmounts[exp.title.toLowerCase().trim()] =
-                        exp.amount;
-                  }
-                }
-
                 return ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -456,10 +385,6 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                   itemBuilder: (context, index) {
                     final goal = goals[index];
                     final progress = goal.progressPercent;
-                    // Use ExpectedExpense amount if available
-                    final dailyAmount =
-                        expectedDailyAmounts[goal.title.toLowerCase().trim()] ??
-                            goal.dailyAmount;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(
@@ -484,13 +409,19 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold)),
                                       Text(
-                                        'Save ${formatAmount(dailyAmount)}/day',
+                                        'Saved: ${formatAmount(goal.currentAmount)} / ${formatAmount(goal.targetAmount)}',
                                         style: const TextStyle(
                                             fontSize: 13,
                                             color: AppColors.textSecondary),
                                       ),
                                     ],
                                   ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.add,
+                                      color: AppColors.primary),
+                                  onPressed: () => _addMoney(goal),
+                                  tooltip: 'Add money',
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.edit,
@@ -500,7 +431,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                                 IconButton(
                                   icon: const Icon(Icons.delete,
                                       color: AppColors.critical),
-                                  onPressed: () => _delete(goal.id!),
+                                  onPressed: () => _delete(goal),
                                 ),
                               ],
                             ),
@@ -514,11 +445,6 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                                 valueColor: const AlwaysStoppedAnimation<Color>(
                                     AppColors.primary),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${formatAmount(goal.currentAmount)} of ${formatAmount(goal.targetAmount)}',
-                              style: const TextStyle(fontSize: 14),
                             ),
                             if (goal.isCompleted)
                               Container(

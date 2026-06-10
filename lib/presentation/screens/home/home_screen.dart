@@ -11,6 +11,8 @@ import 'goals_preview.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/expected_expenses_provider.dart';
 import '../../../data/models/expected_expense_model.dart';
+import '../../../data/models/transaction_model.dart';
+import '../../../data/models/goal_model.dart';
 import '../../providers/slip_up_provider.dart';
 import '../../providers/milestone_provider.dart';
 import '../../providers/goal_provider.dart';
@@ -18,8 +20,7 @@ import '../../providers/settings_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/emotional_messages.dart';
 import '../../../core/utils/number_formatter.dart';
-import '../slip_up/slip_up_screen.dart';
-import '../what_if/what_if_screen.dart';
+import '../goals/goal_celebrate_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -47,6 +48,7 @@ class HomeScreen extends ConsumerWidget {
     final transactions = allTxnsAsync.value!;
     final daysSinceSlipUp = daysSinceSlipUpAsync.valueOrNull;
     final milestone = milestoneAsync.valueOrNull;
+    final goals = goalsAsync.valueOrNull ?? [];
 
     // ---- Survival Mode ----
     final settings = ref.watch(reminderSettingsProvider);
@@ -69,7 +71,7 @@ class HomeScreen extends ConsumerWidget {
       if (t.type == 'income') {
         totalIncome += t.amount;
       } else {
-        totalExpenses += t.amount; // sum everything spent
+        totalExpenses += t.amount;
         final jarLower = t.jar.toLowerCase();
         if (jarLower == 'safely spend') {
           safelySpendSpent += t.amount;
@@ -90,7 +92,7 @@ class HomeScreen extends ConsumerWidget {
       }
     }
 
-    // Effective income for daily allowance calculation (unchanged)
+    // Effective income for daily allowance calculation
     final effectiveIncome = totalIncome - safelySpendSpent - deductionSpent;
     // Remaining amount shown in ring = total income minus all expenses
     double leftAmount = totalIncome - totalExpenses;
@@ -104,7 +106,7 @@ class HomeScreen extends ConsumerWidget {
         max(1, now.difference(trackingStartDate).inDays + 1);
 
     // ---- Planned allocations (monthly) ----
-    // Filter out 'Safely Spend' from calculations (it's a derived value)
+    // Filter out 'Safely Spend' from calculations
     final realExpenses = expectedExpenses
         .where((e) => e.title.toLowerCase() != 'safely spend')
         .toList();
@@ -155,12 +157,12 @@ class HomeScreen extends ConsumerWidget {
         Future.microtask(() async {
           final repo = ref.read(expectedExpenseRepositoryProvider);
           await repo.upsertSafelySpend(safelySpendAmount, monthStr);
-          ref.invalidate(expectedExpensesProvider); // keep Profile page in sync
+          ref.invalidate(expectedExpensesProvider);
         });
       }
     }
 
-    // ---- Overspent analysis (using tracking days) ----
+    // ---- Overspent analysis ----
     String? mostOverspentCategory;
     double maxOverRatio = 1.0;
     for (final exp in expectedExpenses) {
@@ -181,25 +183,22 @@ class HomeScreen extends ConsumerWidget {
     }
     final bool isOverBudget = maxOverRatio > 1.0;
 
-    // ---- Nearest goal nudge (only in normal mode) ----
+    // ---- Nearest goal nudge ----
     String? nearestGoalMessage;
-    if (!survivalMode) {
-      final goals = goalsAsync.valueOrNull ?? [];
-      if (goals.isNotEmpty) {
-        final incomplete = goals.where((g) => !g.isCompleted).toList();
-        if (incomplete.isNotEmpty) {
-          incomplete.sort((a, b) {
-            final remainingA = a.targetAmount - a.currentAmount;
-            final remainingB = b.targetAmount - b.currentAmount;
-            return remainingA.compareTo(remainingB);
-          });
-          final closest = incomplete.first;
-          final remaining = closest.targetAmount - closest.currentAmount;
-          if (remaining <= 500) {
-            nearestGoalMessage =
-                "You're ${formatAmount(remaining)} away from “${closest.title}”. "
-                "You're almost there!";
-          }
+    if (!survivalMode && goals.isNotEmpty) {
+      final incomplete = goals.where((g) => !g.isCompleted).toList();
+      if (incomplete.isNotEmpty) {
+        incomplete.sort((a, b) {
+          final remainingA = a.targetAmount - a.currentAmount;
+          final remainingB = b.targetAmount - b.currentAmount;
+          return remainingA.compareTo(remainingB);
+        });
+        final closest = incomplete.first;
+        final remaining = closest.targetAmount - closest.currentAmount;
+        if (remaining <= 500) {
+          nearestGoalMessage =
+              "You're ${formatAmount(remaining)} away from “${closest.title}”. "
+              "You're almost there!";
         }
       }
     }
@@ -240,7 +239,7 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   HealthRingWidget(
                     leftAmount: leftAmount,
-                    totalBudget: totalIncome, // now shows total monthly income
+                    totalBudget: totalIncome,
                   ),
                   const SizedBox(height: 16),
                   DailyAllowanceCard(
@@ -255,10 +254,10 @@ class HomeScreen extends ConsumerWidget {
                     trackingDaysElapsed: trackingDaysElapsed,
                     dailyAllowance: dailyAllowance,
                     jarEarliestDate: jarEarliestDate,
-                    goalTitles: goalsAsync.valueOrNull
-                            ?.map((g) => g.title.toLowerCase())
-                            .toSet() ??
-                        {},
+                    goalTitles: goals.map((g) => g.title.toLowerCase()).toSet(),
+                    goals: goals,
+                    onAddMoneyToGoal: (goal) =>
+                        _showAddMoneyDialog(context, ref, goal),
                   ),
                   if (!survivalMode) ...[
                     const SizedBox(height: 24),
@@ -281,6 +280,66 @@ class HomeScreen extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  void _showAddMoneyDialog(
+      BuildContext context, WidgetRef ref, Goal goal) async {
+    final controller = TextEditingController();
+    final amount = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Add to "${goal.title}"'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(hintText: 'Amount'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final val = double.tryParse(controller.text);
+              if (val != null && val > 0) Navigator.pop(ctx, val);
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    if (amount != null && amount > 0) {
+      final newCurrent = goal.currentAmount + amount;
+      final completed = newCurrent >= goal.targetAmount;
+      final updated = goal.copyWith(
+        currentAmount: newCurrent,
+        isCompleted: completed,
+      );
+      final goalRepo = ref.read(goalRepositoryProvider);
+      await goalRepo.update(updated);
+
+      final transactionRepo = ref.read(transactionRepositoryProvider);
+      await transactionRepo.insertTransaction(TransactionModel(
+        type: 'savings',
+        jar: goal.title.toLowerCase(),
+        amount: amount,
+        date: DateTime.now(),
+        note: 'Manual savings for ${goal.title}',
+      ));
+
+      ref.invalidate(goalsProvider);
+      ref.invalidate(allTransactionsProvider);
+      ref.invalidate(jarSummariesProvider);
+
+      if (completed && context.mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => GoalCelebrateScreen(
+            goalTitle: goal.title,
+            emoji: goal.emoji,
+          ),
+        );
+      }
+    }
   }
 }
 

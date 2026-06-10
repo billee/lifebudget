@@ -83,20 +83,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await repo.update(expense);
     }
 
-    // Sync to matching Goal if one exists
+    // Sync to matching Goal if one exists (manual search to avoid nullable issues)
     final goalRepo = ref.read(goalRepositoryProvider);
     final goals = await goalRepo.getAll();
-    final matchingGoal = goals.cast<Goal?>().firstWhere(
-          (g) => g!.title.toLowerCase().trim() == title.toLowerCase().trim(),
-          orElse: () => null,
-        );
+    Goal? matchingGoal;
+    for (final goal in goals) {
+      if (goal.title.toLowerCase().trim() == title.toLowerCase().trim()) {
+        matchingGoal = goal;
+        break;
+      }
+    }
     if (matchingGoal != null) {
-      // Update dailyAmount if this is a daily expense
-      final newDailyAmount =
-          _frequency == 'daily' ? amount : matchingGoal.dailyAmount;
-      final updatedGoal = matchingGoal.copyWith(dailyAmount: newDailyAmount);
-      await goalRepo.update(updatedGoal);
-      ref.invalidate(goalsProvider);
+      // No further action – goal's monthly budget is already represented by ExpectedExpense
     }
 
     ref.invalidate(expectedExpensesProvider);
@@ -118,7 +116,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final spent = await transactionRepo.getJarSpentThisMonth(jarName);
 
     if (spent > 0 && mounted) {
-      // Show info dialog explaining what will happen
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -146,7 +143,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       if (confirmed != true) return;
 
-      // 1. Set budget to 0
       final repo = ref.read(expectedExpenseRepositoryProvider);
       final updated = ExpectedExpense(
         id: expense.id,
@@ -157,8 +153,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
       await repo.update(updated);
 
-      // 2. Add a one-time "expense deduction" transaction
-      // This represents money already spent that reduces your available income
       final deduction = TransactionModel(
         type: 'expense',
         jar: '${jarName}_deduction',
@@ -168,7 +162,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
       await transactionRepo.insertTransaction(deduction);
 
-      // 3. Also handle matching goal if exists
       final goalRepo = ref.read(goalRepositoryProvider);
       final goals = await goalRepo.getAll();
       for (final goal in goals) {
@@ -179,17 +172,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         }
       }
 
-      // 4. Refresh providers
       ref.invalidate(expectedExpensesProvider);
       ref.invalidate(allTransactionsProvider);
       ref.invalidate(jarSummariesProvider);
     } else {
-      // No spending yet — safe to just delete
       final repo = ref.read(expectedExpenseRepositoryProvider);
       await repo.delete(expense.id!);
       ref.invalidate(expectedExpensesProvider);
 
-      // Also delete matching goal if exists
       final goalRepo = ref.read(goalRepositoryProvider);
       final goals = await goalRepo.getAll();
       for (final goal in goals) {
@@ -276,7 +266,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Name field ---
             const Text('Your Name',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
@@ -308,8 +297,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 16),
-
-            // --- Expected expenses form ---
             Text(
               _editingId == null
                   ? 'Add Expected Expense'
@@ -386,8 +373,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 16),
-
-            // --- Expected expenses list ---
             const Text('Your Expected Expenses',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
@@ -443,12 +428,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 );
               },
             ),
-
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 16),
-
-            // --- Daily Reminder ---
             const Text(
               'Daily Check‑in Reminder',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -459,7 +441,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               style: TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),
-
             Consumer(
               builder: (context, ref, _) {
                 final settings = ref.watch(reminderSettingsProvider);
@@ -501,8 +482,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         },
                       ),
                     const SizedBox(height: 16),
-
-                    // --- Survival Mode Toggle ---
                     SwitchListTile(
                       title: const Text('Survival Budget Mode'),
                       subtitle: const Text(
@@ -519,12 +498,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 );
               },
             ),
-
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 16),
-
-            // --- Fresh Start section ---
             const Text(
               'Need a fresh start?',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),

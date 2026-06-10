@@ -12,129 +12,96 @@ class GoalsPreview extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final goalsAsync = ref.watch(goalsProvider);
-    final expensesAsync = ref.watch(expectedExpensesProvider);
-
-    // Build a map of title (lowercase) -> daily amount from expected expenses
-    final expectedDailyAmounts = <String, double>{};
-    for (final exp in expensesAsync.valueOrNull ?? []) {
-      if (exp.frequency == 'daily') {
-        expectedDailyAmounts[exp.title.toLowerCase().trim()] = exp.amount;
-      }
-    }
 
     return goalsAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (err, stack) => const SizedBox.shrink(),
       data: (goals) {
-        final activeGoals = goals.where((g) => !g.isCompleted).toList();
-        if (activeGoals.isEmpty) return const SizedBox.shrink();
+        // Show only incomplete goals, limit to 3 for preview
+        final incompleteGoals = goals.where((g) => !g.isCompleted).toList();
+        if (incompleteGoals.isEmpty) return const SizedBox.shrink();
+
+        final displayGoals = incompleteGoals.take(3).toList();
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Your Goals',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 150, // enough room for all content
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: activeGoals.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (context, index) {
-                  final goal = activeGoals[index];
-                  final progress = goal.progressPercent;
-                  // Use ExpectedExpense amount if available, otherwise use Goal's dailyAmount
-                  final dailyAmount =
-                      expectedDailyAmounts[goal.title.toLowerCase().trim()] ??
-                          goal.dailyAmount;
-                  return GestureDetector(
-                    onTap: () {},
-                    child: Container(
-                      width: 160,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardBackground,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(goal.emoji,
-                                  style: const TextStyle(fontSize: 22)),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(goal.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w600)),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Save ${formatAmount(dailyAmount)}/day',
-                            style: const TextStyle(
-                                fontSize: 11, color: AppColors.textSecondary),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Target: ${formatAmount(goal.targetAmount)}',
-                            style: const TextStyle(
-                                fontSize: 11, color: AppColors.textSecondary),
-                          ),
-                          const SizedBox(height: 4),
-                          // Progress bar with visible track
-                          Container(
-                            height: 14,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade300,
-                              borderRadius: BorderRadius.circular(7),
-                            ),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: FractionallySizedBox(
-                                widthFactor: progress.clamp(0.0, 1.0),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary,
-                                    borderRadius: BorderRadius.circular(7),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                '${formatAmount(goal.currentAmount)} / ${formatAmount(goal.targetAmount)}',
-                                style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textSecondary),
-                              ),
-                              Text(
-                                '${(progress * 100).toInt()}%',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.primary),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
+            const Text(
+              'Your Goals',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 12),
+            ...displayGoals.map((goal) => _GoalPreviewTile(goal: goal)),
+            if (incompleteGoals.length > 3)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  '+ ${incompleteGoals.length - 3} more goal(s)',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
           ],
         );
       },
+    );
+  }
+}
+
+class _GoalPreviewTile extends StatelessWidget {
+  final Goal goal;
+
+  const _GoalPreviewTile({required this.goal});
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = goal.progressPercent.clamp(0.0, 1.0);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(goal.emoji, style: const TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  goal.title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${formatAmount(goal.currentAmount)} / ${formatAmount(goal.targetAmount)}',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: Colors.grey[200],
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
