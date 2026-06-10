@@ -17,7 +17,7 @@ class JarRowWidget extends StatelessWidget {
   final Map<String, DateTime> jarEarliestDate;
   final Set<String> goalTitles;
   final List<Goal> goals;
-  final Function(Goal) onAddMoneyToGoal;
+  final Function(Goal) onAddMoneyToGoal; // still kept in signature but not used
 
   const JarRowWidget({
     super.key,
@@ -54,7 +54,7 @@ class JarRowWidget extends StatelessWidget {
   Widget _buildGoalTile(Goal goal) {
     final progress = goal.progressPercent;
     final daysLeft = _getDaysLeftInMonth();
-    final dailyRate = goal.targetAmount / daysLeft; // defined here
+    final dailyRate = goal.targetAmount / daysLeft;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -66,8 +66,18 @@ class JarRowWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // "Goal" label + emoji + title row (no + button)
           Row(
             children: [
+              Text(
+                'Goal',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 12),
               Text(goal.emoji, style: const TextStyle(fontSize: 24)),
               const SizedBox(width: 8),
               Expanded(
@@ -76,14 +86,10 @@ class JarRowWidget extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.add, size: 20, color: AppColors.primary),
-                onPressed: () => onAddMoneyToGoal(goal),
-                tooltip: 'Add money',
-              ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+          // Progress bar
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
@@ -95,6 +101,7 @@ class JarRowWidget extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
+          // Saved / Budget row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -104,15 +111,16 @@ class JarRowWidget extends StatelessWidget {
                     const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
               ),
               Text(
-                'Target: ${formatAmount(goal.targetAmount)}',
+                'Budget: ${formatAmount(goal.targetAmount)}',
                 style: const TextStyle(
                     fontSize: 12, color: AppColors.textSecondary),
               ),
             ],
           ),
           const SizedBox(height: 4),
+          // Rate per day
           Text(
-            'Daily rate: ${formatAmount(dailyRate)} / day',
+            'Rate: ${formatAmount(dailyRate)} / day',
             style:
                 const TextStyle(fontSize: 11, color: AppColors.textSecondary),
           ),
