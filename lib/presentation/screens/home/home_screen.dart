@@ -7,7 +7,7 @@ import 'jar_row_widget.dart';
 import 'focus_card_widget.dart';
 import 'home_header.dart';
 import 'daily_allowance_card.dart';
-import 'goals_preview.dart';
+// import 'goals_preview.dart';   // <-- removed
 import '../../providers/transaction_provider.dart';
 import '../../providers/expected_expenses_provider.dart';
 import '../../../data/models/expected_expense_model.dart';
@@ -57,7 +57,7 @@ class HomeScreen extends ConsumerWidget {
     // ---- Totals ----
     final now = DateTime.now();
     double totalIncome = 0;
-    double totalExpenses = 0; // all expenses (incl. safely spend & deductions)
+    double totalExpenses = 0;
     double safelySpendSpent = 0;
     double deductionSpent = 0;
     final Map<String, double> jarSpent = {};
@@ -92,21 +92,15 @@ class HomeScreen extends ConsumerWidget {
       }
     }
 
-    // Effective income for daily allowance calculation
     final effectiveIncome = totalIncome - safelySpendSpent - deductionSpent;
-    // Remaining amount shown in ring = total income minus all expenses
     double leftAmount = totalIncome - totalExpenses;
     if (leftAmount < 0) leftAmount = 0;
 
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-
-    // Tracking days
     final DateTime trackingStartDate = earliestDate ?? now;
     final int trackingDaysElapsed =
         max(1, now.difference(trackingStartDate).inDays + 1);
 
-    // ---- Planned allocations (monthly) ----
-    // Filter out 'Safely Spend' from calculations
     final realExpenses = expectedExpenses
         .where((e) => e.title.toLowerCase() != 'safely spend')
         .toList();
@@ -142,7 +136,6 @@ class HomeScreen extends ConsumerWidget {
     final double dailyAllowance =
         (freeMoney <= 0 || daysLeft <= 0) ? 0.0 : freeMoney / daysLeft;
 
-    // Safely Spend amount (displayed in its own section)
     final safelySpendAmount = dailyAllowance * daysLeft;
     final monthStr = '${now.year}-${now.month.toString().padLeft(2, '0')}';
 
@@ -182,26 +175,6 @@ class HomeScreen extends ConsumerWidget {
       }
     }
     final bool isOverBudget = maxOverRatio > 1.0;
-
-    // ---- Nearest goal nudge ----
-    String? nearestGoalMessage;
-    if (!survivalMode && goals.isNotEmpty) {
-      final incomplete = goals.where((g) => !g.isCompleted).toList();
-      if (incomplete.isNotEmpty) {
-        incomplete.sort((a, b) {
-          final remainingA = a.targetAmount - a.currentAmount;
-          final remainingB = b.targetAmount - b.currentAmount;
-          return remainingA.compareTo(remainingB);
-        });
-        final closest = incomplete.first;
-        final remaining = closest.targetAmount - closest.currentAmount;
-        if (remaining <= 500) {
-          nearestGoalMessage =
-              "You're ${formatAmount(remaining)} away from “${closest.title}”. "
-              "You're almost there!";
-        }
-      }
-    }
 
     // ---- Emotional messages ----
     String statusLine;
@@ -259,18 +232,14 @@ class HomeScreen extends ConsumerWidget {
                     onAddMoneyToGoal: (goal) =>
                         _showAddMoneyDialog(context, ref, goal),
                   ),
-                  if (!survivalMode) ...[
+                  if (!survivalMode && safelySpendAmount > 0) ...[
                     const SizedBox(height: 24),
-                    const GoalsPreview(),
-                    if (safelySpendAmount > 0) ...[
-                      const SizedBox(height: 24),
-                      _SafelySpendSection(
-                        budget: safelySpendAmount,
-                        spent: safelySpendSpent,
-                        daysLeft: daysLeft,
-                        dailyAllowance: dailyAllowance,
-                      ),
-                    ],
+                    _SafelySpendSection(
+                      budget: safelySpendAmount,
+                      spent: safelySpendSpent,
+                      daysLeft: daysLeft,
+                      dailyAllowance: dailyAllowance,
+                    ),
                   ],
                   const SizedBox(height: 100),
                 ],

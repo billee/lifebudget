@@ -8,7 +8,8 @@ import '../../../data/models/expected_expense_model.dart';
 import '../../../data/models/goal_model.dart';
 
 class JarRowWidget extends StatelessWidget {
-  final List<ExpectedExpense> expectedExpenses;
+  final List<ExpectedExpense>
+      expectedExpenses; // kept for compatibility, not used
   final Map<String, double> jarSpent;
   final double totalIncome;
   final int trackingDaysElapsed;
@@ -33,6 +34,10 @@ class JarRowWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (goals.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -41,112 +46,15 @@ class JarRowWidget extends StatelessWidget {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        ...expectedExpenses.map((exp) => _buildJarTile(exp)).toList(),
-        if (goals.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          const Divider(),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'Savings Goals',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
-          ...goals.map((goal) => _buildGoalTile(goal)).toList(),
-        ],
+        ...goals.map((goal) => _buildGoalTile(goal)),
       ],
-    );
-  }
-
-  Widget _buildJarTile(ExpectedExpense expense) {
-    final title = expense.title;
-    final titleLower = title.toLowerCase();
-    final spent = jarSpent[titleLower] ?? 0.0;
-    final plannedPerDay = _calculatePlannedPerDay(expense);
-    final earliestDate = jarEarliestDate[titleLower];
-    final daysSinceStart = earliestDate != null
-        ? DateTime.now().difference(earliestDate).inDays + 1
-        : trackingDaysElapsed;
-    final actualPerDay = daysSinceStart > 0 ? spent / daysSinceStart : 0.0;
-
-    // Determine status color
-    Color statusColor;
-    String statusText;
-    if (plannedPerDay == 0) {
-      statusColor = AppColors.textSecondary;
-      statusText = 'No budget';
-    } else if (actualPerDay <= plannedPerDay) {
-      statusColor = AppColors.onTrack;
-      statusText = 'On track';
-    } else {
-      statusColor = AppColors.critical;
-      statusText = 'Over budget';
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-              Text(
-                '₱${spent.toStringAsFixed(0)}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text(
-                '${formatAmount(actualPerDay)}/day avg',
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Budget: ${formatAmount(plannedPerDay)}/day',
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  statusText,
-                  style: TextStyle(fontSize: 11, color: statusColor),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
   Widget _buildGoalTile(Goal goal) {
     final progress = goal.progressPercent;
-    final remaining = goal.targetAmount - goal.currentAmount;
+    final daysLeft = _getDaysLeftInMonth();
+    final dailyRate = goal.targetAmount / daysLeft; // defined here
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -180,28 +88,33 @@ class JarRowWidget extends StatelessWidget {
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: progress.clamp(0.0, 1.0),
-              minHeight: 8,
-              backgroundColor: Colors.grey[300],
+              minHeight: 10,
+              backgroundColor: Colors.grey.shade300,
               valueColor:
                   const AlwaysStoppedAnimation<Color>(AppColors.primary),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${formatAmount(goal.currentAmount)} / ${formatAmount(goal.targetAmount)}',
+                'Saved: ${formatAmount(goal.currentAmount)}',
+                style:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              ),
+              Text(
+                'Target: ${formatAmount(goal.targetAmount)}',
                 style: const TextStyle(
                     fontSize: 12, color: AppColors.textSecondary),
               ),
-              if (remaining > 0)
-                Text(
-                  '${formatAmount(remaining)} left',
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.textSecondary),
-                ),
             ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Daily rate: ${formatAmount(dailyRate)} / day',
+            style:
+                const TextStyle(fontSize: 11, color: AppColors.textSecondary),
           ),
           if (goal.isCompleted)
             Container(
@@ -221,21 +134,10 @@ class JarRowWidget extends StatelessWidget {
     );
   }
 
-  double _calculatePlannedPerDay(ExpectedExpense expense) {
+  int _getDaysLeftInMonth() {
     final now = DateTime.now();
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    double monthlyAmount = 0;
-    switch (expense.frequency) {
-      case 'daily':
-        monthlyAmount = expense.amount * daysInMonth;
-        break;
-      case 'weekly':
-        monthlyAmount = expense.amount * (daysInMonth / 7);
-        break;
-      case 'monthly':
-        monthlyAmount = expense.amount;
-        break;
-    }
-    return monthlyAmount / daysInMonth;
+    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+    final daysLeft = lastDayOfMonth.difference(now).inDays + 1;
+    return daysLeft > 0 ? daysLeft : 1;
   }
 }
