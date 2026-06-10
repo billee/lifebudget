@@ -7,7 +7,6 @@ import 'jar_row_widget.dart';
 import 'focus_card_widget.dart';
 import 'home_header.dart';
 import 'daily_allowance_card.dart';
-// import 'goals_preview.dart';   // <-- removed
 import '../../providers/transaction_provider.dart';
 import '../../providers/expected_expenses_provider.dart';
 import '../../../data/models/expected_expense_model.dart';
@@ -21,6 +20,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/emotional_messages.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../goals/goal_celebrate_screen.dart';
+import 'goals_preview.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -223,15 +223,15 @@ class HomeScreen extends ConsumerWidget {
                   JarRowWidget(
                     expectedExpenses: workingList,
                     jarSpent: jarSpent,
-                    totalIncome: effectiveIncome,
                     trackingDaysElapsed: trackingDaysElapsed,
-                    dailyAllowance: dailyAllowance,
                     jarEarliestDate: jarEarliestDate,
-                    goalTitles: goals.map((g) => g.title.toLowerCase()).toSet(),
-                    goals: goals,
-                    onAddMoneyToGoal: (goal) =>
-                        _showAddMoneyDialog(context, ref, goal),
                   ),
+                  const SizedBox(height: 24),
+
+                  // Goals preview (separate section)
+                  const GoalsPreview(),
+
+                  const SizedBox(height: 24),
                   if (!survivalMode && safelySpendAmount > 0) ...[
                     const SizedBox(height: 24),
                     _SafelySpendSection(
@@ -350,7 +350,7 @@ class _SafelySpendSection extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: AppColors.primary,
                 ),
               ),
               const Spacer(),
