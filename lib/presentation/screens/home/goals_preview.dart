@@ -4,7 +4,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../data/models/goal_model.dart';
 import '../../providers/goal_provider.dart';
-import '../../providers/expected_expenses_provider.dart';
 
 class GoalsPreview extends ConsumerWidget {
   const GoalsPreview({super.key});
@@ -31,7 +30,7 @@ class GoalsPreview extends ConsumerWidget {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            ...displayGoals.map((goal) => _GoalPreviewTile(goal: goal)),
+            ...displayGoals.map((goal) => _GoalPreviewCard(goal: goal)),
             if (incompleteGoals.length > 3)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -50,17 +49,21 @@ class GoalsPreview extends ConsumerWidget {
   }
 }
 
-class _GoalPreviewTile extends StatelessWidget {
+class _GoalPreviewCard extends StatelessWidget {
   final Goal goal;
 
-  const _GoalPreviewTile({required this.goal});
+  const _GoalPreviewCard({required this.goal});
 
   @override
   Widget build(BuildContext context) {
     final progress = goal.progressPercent.clamp(0.0, 1.0);
+    final remaining = goal.targetAmount - goal.currentAmount;
+    final daysLeft = _getDaysLeftInMonth();
+    final dailyRate = goal.targetAmount / daysLeft;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(16),
@@ -70,38 +73,81 @@ class _GoalPreviewTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(goal.emoji, style: const TextStyle(fontSize: 20)),
-              const SizedBox(width: 8),
+              Text(goal.emoji, style: const TextStyle(fontSize: 28)),
+              const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  goal.title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      goal.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Rate: ${formatAmount(dailyRate)} / day',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            '${formatAmount(goal.currentAmount)} / ${formatAmount(goal.targetAmount)}',
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 12),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
               value: progress,
-              minHeight: 6,
-              backgroundColor: Colors.grey[200],
+              minHeight: 10,
+              backgroundColor: Colors.grey.shade300,
               valueColor:
                   const AlwaysStoppedAnimation<Color>(AppColors.primary),
             ),
           ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Saved: ${formatAmount(goal.currentAmount)}',
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+              Text(
+                'Budget: ${formatAmount(goal.targetAmount)}',
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+          if (goal.isCompleted)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.onTrack.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text(
+                'Completed! 🎉',
+                style: TextStyle(fontSize: 12, color: AppColors.onTrack),
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  int _getDaysLeftInMonth() {
+    final now = DateTime.now();
+    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+    final daysLeft = lastDayOfMonth.difference(now).inDays + 1;
+    return daysLeft > 0 ? daysLeft : 1;
   }
 }
