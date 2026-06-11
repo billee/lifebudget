@@ -38,20 +38,26 @@ class BudgetState extends Equatable {
   final List<ExpenseTransaction> actualExpenses;
   final DateTime startDate;
   final DateTime endDate;
-  final DateTime today; // current date for remaining days calculation
+  final DateTime today;
   final int daysInPeriod;
-  final int daysLeftInPeriod;
+  final int daysElapsed; // days from startDate to today (inclusive)
+  final int daysLeft;
   final double totalExpectedIncome;
   final double totalActualIncome;
   final Map<String, double> plannedTotalPerCategory;
   final double totalPlannedExpenses;
-  final double originalDailyAllowance; // planned rate for whole period
+  final Map<String, double> plannedUpToTodayPerCategory;
+  final double totalPlannedUpToToday;
+  final Map<String, double> plannedRemainingPerCategory;
+  final double totalPlannedRemaining;
+  final double originalDailyAllowance;
   final double totalSafelySpendBudget;
   final double safelySpendSpent;
   final double remainingSafelySpend;
-  final double currentDailyAllowance; // remaining budget / days left
+  final double currentDailyAllowance;
   final Map<String, double> actualSpentPerCategory;
-  final Map<String, double> remainingPerCategory;
+  final Map<String, double>
+      remainingPerCategory; // total planned - actual spent
 
   const BudgetState({
     required this.expectedIncomes,
@@ -62,11 +68,16 @@ class BudgetState extends Equatable {
     required this.endDate,
     required this.today,
     required this.daysInPeriod,
-    required this.daysLeftInPeriod,
+    required this.daysElapsed,
+    required this.daysLeft,
     required this.totalExpectedIncome,
     required this.totalActualIncome,
     required this.plannedTotalPerCategory,
     required this.totalPlannedExpenses,
+    required this.plannedUpToTodayPerCategory,
+    required this.totalPlannedUpToToday,
+    required this.plannedRemainingPerCategory,
+    required this.totalPlannedRemaining,
     required this.originalDailyAllowance,
     required this.totalSafelySpendBudget,
     required this.safelySpendSpent,
@@ -86,11 +97,16 @@ class BudgetState extends Equatable {
         endDate,
         today,
         daysInPeriod,
-        daysLeftInPeriod,
+        daysElapsed,
+        daysLeft,
         totalExpectedIncome,
         totalActualIncome,
         plannedTotalPerCategory,
         totalPlannedExpenses,
+        plannedUpToTodayPerCategory,
+        totalPlannedUpToToday,
+        plannedRemainingPerCategory,
+        totalPlannedRemaining,
         originalDailyAllowance,
         totalSafelySpendBudget,
         safelySpendSpent,
@@ -108,19 +124,21 @@ class BudgetEngine {
     required List<ExpenseCategory> expectedExpenses,
     List<ExpenseTransaction> actualExpenses = const [],
     DateTime? endDate,
-    DateTime? today, // pass current date; defaults to now
+    DateTime? today,
   }) {
     final now = endDate ?? DateTime.now();
     final currentDate = today ?? DateTime.now();
 
-    // Start date is earliest actual income, or today if none
     final startDate = actualIncomes.isNotEmpty
         ? actualIncomes
             .map((e) => e.date)
             .reduce((a, b) => a.isBefore(b) ? a : b)
         : currentDate;
+
     final daysInPeriod = now.difference(startDate).inDays + 1;
-    final daysLeftInPeriod =
+    final daysElapsed =
+        (currentDate.difference(startDate).inDays + 1).clamp(0, daysInPeriod);
+    final daysLeft =
         (now.difference(currentDate).inDays + 1).clamp(0, daysInPeriod);
 
     double totalActualIncome = 0;
@@ -138,33 +156,64 @@ class BudgetEngine {
     final effectiveIncome =
         totalActualIncome > 0 ? totalActualIncome : totalExpectedIncome;
 
-    // Planned expenses (excluding Safely Spend)
+    // Total planned for the whole period and prorated up to today
     final plannedTotal = <String, double>{};
+    final plannedUpToToday = <String, double>{};
+    final plannedRemaining = <String, double>{};
     double totalPlanned = 0;
+    double totalUpToToday = 0;
+    double totalRemaining = 0;
+
     for (final exp in expectedExpenses) {
-      double categoryTotal;
+      double total;
       switch (exp.frequency) {
         case 'daily':
-          categoryTotal = exp.amount * daysInPeriod;
+          total = exp.amount * daysInPeriod;
           break;
         case 'weekly':
-          categoryTotal = (exp.amount / 7) * daysInPeriod;
+          total = (exp.amount / 7) * daysInPeriod;
           break;
         case 'monthly':
-          categoryTotal = exp.amount;
+          total = exp.amount; // full monthly amount
           break;
         default:
           throw Exception('Unknown frequency: ${exp.frequency}');
       }
-      plannedTotal[exp.name] = categoryTotal;
-      totalPlanned += categoryTotal;
+      plannedTotal[exp.name] = total;
+
+      // Prorated up to today
+      double upToToday;
+      switch (exp.frequency) {
+        case 'daily':
+          upToToday = exp.amount * daysElapsed;
+          break;
+        case 'weekly':
+          upToToday = (exp.amount / 7) * daysElapsed;
+          break;
+        case 'monthly':
+          // For monthly, we consider the full amount already due if we are past the start date.
+          // For simplicity, we allocate the full monthly amount to "up to today"
+          upToToday = exp.amount;
+          break;
+        default:
+          upToToday = 0;
+      }
+      plannedUpToToday[exp.name] = upToToday;
+
+      // Remaining = total - upToToday
+      final remaining = total - upToToday;
+      plannedRemaining[exp.name] = remaining;
+
+      totalPlanned += total;
+      totalUpToToday += upToToday;
+      totalRemaining += remaining;
     }
 
     final originalDailyAllowance =
         (effectiveIncome - totalPlanned) / daysInPeriod;
     final totalSafelySpendBudget = originalDailyAllowance * daysInPeriod;
 
-    // Aggregate actual expenses, separating Safely Spend
+    // Actual expenses aggregation
     final actualSpent = <String, double>{};
     double safelySpendSpent = 0;
     for (final trans in actualExpenses) {
@@ -178,13 +227,13 @@ class BudgetEngine {
 
     final remainingSafelySpend = totalSafelySpendBudget - safelySpendSpent;
     final currentDailyAllowance =
-        daysLeftInPeriod > 0 ? remainingSafelySpend / daysLeftInPeriod : 0.0;
+        daysLeft > 0 ? remainingSafelySpend / daysLeft : 0.0;
 
-    // Remaining per planned category
-    final remaining = <String, double>{};
+    // Remaining per planned category (total planned - actual spent)
+    final remainingPerCat = <String, double>{};
     for (final exp in expectedExpenses) {
       final spent = actualSpent[exp.name] ?? 0.0;
-      remaining[exp.name] = plannedTotal[exp.name]! - spent;
+      remainingPerCat[exp.name] = plannedTotal[exp.name]! - spent;
     }
 
     return BudgetState(
@@ -196,18 +245,23 @@ class BudgetEngine {
       endDate: now,
       today: currentDate,
       daysInPeriod: daysInPeriod,
-      daysLeftInPeriod: daysLeftInPeriod,
+      daysElapsed: daysElapsed,
+      daysLeft: daysLeft,
       totalExpectedIncome: totalExpectedIncome,
       totalActualIncome: totalActualIncome,
       plannedTotalPerCategory: plannedTotal,
       totalPlannedExpenses: totalPlanned,
+      plannedUpToTodayPerCategory: plannedUpToToday,
+      totalPlannedUpToToday: totalUpToToday,
+      plannedRemainingPerCategory: plannedRemaining,
+      totalPlannedRemaining: totalRemaining,
       originalDailyAllowance: originalDailyAllowance,
       totalSafelySpendBudget: totalSafelySpendBudget,
       safelySpendSpent: safelySpendSpent,
       remainingSafelySpend: remainingSafelySpend,
       currentDailyAllowance: currentDailyAllowance,
       actualSpentPerCategory: actualSpent,
-      remainingPerCategory: remaining,
+      remainingPerCategory: remainingPerCat,
     );
   }
 }
