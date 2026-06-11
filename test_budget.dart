@@ -1,8 +1,8 @@
-import 'dart:io';
+import 'dart:convert';
 import 'budget_engine.dart';
 
 void main() {
-  print('=== BUDGET ENGINE – DETAILED CALCULATIONS (Full Report) ===\n');
+  print('=== BUDGET ENGINE – COMPLETE DETAILED CALCULATIONS + JSON ===\n');
 
   // ---------- INPUT DATA ----------
   final actualIncomes = [
@@ -25,8 +25,7 @@ void main() {
     ExpenseCategory(name: 'Savings', amount: 200, frequency: 'monthly'),
   ];
 
-  // Real transactions: Food expense on 12th, Safely Spend expense of 50 on 20th
-  final actualExpenses = <ExpenseTransaction>[
+  final actualExpenses = [
     ExpenseTransaction(
         category: 'Food',
         amount: 30,
@@ -40,9 +39,8 @@ void main() {
   ];
 
   final endDate = DateTime(2026, 6, 30);
-  final today = DateTime(2026, 6, 21); // simulate "today" after withdrawal
+  final today = DateTime(2026, 6, 21);
 
-  // ---------- COMPUTE ----------
   final state = BudgetEngine.compute(
     actualIncomes: actualIncomes,
     expectedIncomes: expectedIncomes,
@@ -52,140 +50,122 @@ void main() {
     today: today,
   );
 
-  // Helper to format date without time
   String fmtDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  // ---------- DETAILED OUTPUT ----------
-  print('1. PERIOD & DATES');
+  // ---------- 1. PERIOD ----------
+  print('1. PERIOD & DAYS');
   print('   Start date (earliest actual income): ${fmtDate(state.startDate)}');
-  print('   End of period: ${fmtDate(state.endDate)}');
-  print('   Today (simulated): ${fmtDate(state.today)}');
-  print(
-      '   Days in period: ${state.daysInPeriod} (from ${fmtDate(state.startDate)} to ${fmtDate(state.endDate)})');
-  print('   Days elapsed (start → today): ${state.daysElapsed}');
-  print('   Days left (after today): ${state.daysLeft}\n');
+  print('   End date: ${fmtDate(state.endDate)}');
+  print('   Today: ${fmtDate(state.today)}');
+  print('   Days in period = (end - start + 1) = ${state.daysInPeriod}');
+  print('   Days elapsed = (today - start + 1) = ${state.daysElapsed}');
+  print('   Days left = (end - today + 1) = ${state.daysLeft}\n');
 
-  print('2. INCOME DETAILS');
+  // ---------- 2. INCOME ----------
+  print('2. INCOME');
   print('   Actual incomes:');
-  for (final inc in state.actualIncomes) {
-    print(
-        '     - ${inc.amount} on ${fmtDate(inc.date)} (${inc.description ?? 'income'})');
+  double actualSum = 0;
+  for (var inc in actualIncomes) {
+    actualSum += inc.amount;
+    print('     ${inc.amount} on ${fmtDate(inc.date)}');
   }
-  print('   Total actual income = ${state.totalActualIncome}');
-  print('   Expected incomes (up to end date):');
-  for (final inc in state.expectedIncomes) {
-    print(
-        '     - ${inc.amount} on ${fmtDate(inc.date)} (${inc.description ?? 'income'})');
+  print('   Total actual income = $actualSum');
+  print('   Expected incomes (up to end):');
+  double expectedSum = 0;
+  for (var inc in expectedIncomes) {
+    expectedSum += inc.amount;
+    print('     ${inc.amount} on ${fmtDate(inc.date)}');
   }
-  print('   Total expected income = ${state.totalExpectedIncome}');
-  print(
-      '   Effective income (actual used because >0) = ${state.totalActualIncome}\n');
+  print('   Total expected income = $expectedSum');
+  print('   Effective income = actual income (since >0) = $actualSum\n');
 
-  print('3. PLANNED EXPENSES – TOTAL FOR THE PERIOD');
-  double sumPlanned = 0;
-  for (final exp in state.expectedExpenses) {
+  // ---------- 3. TOTAL PLANNED (FULL PERIOD) ----------
+  print('3. PLANNED EXPENSES – TOTAL FOR PERIOD');
+  double totalPlanned = 0;
+  for (var exp in expectedExpenses) {
     double total = state.plannedTotalPerCategory[exp.name]!;
-    sumPlanned += total;
-    String detail;
-    switch (exp.frequency) {
-      case 'daily':
-        detail = '${exp.amount} × ${state.daysInPeriod} days';
-        break;
-      case 'weekly':
-        detail = '(${exp.amount} / 7) × ${state.daysInPeriod} days';
-        break;
-      case 'monthly':
-        detail = 'full monthly amount (no prorating)';
-        break;
-      default:
-        detail = '';
-    }
-    print('   ${exp.name} (${exp.frequency}): $total   ($detail)');
-  }
-  print('   Total planned expenses (full period) = $sumPlanned\n');
-
-  print('4. PLANNED EXPENSES – UP TO TODAY (prorated)');
-  double sumUpToToday = 0;
-  for (final exp in state.expectedExpenses) {
-    double upToToday = state.plannedUpToTodayPerCategory[exp.name]!;
-    sumUpToToday += upToToday;
-    String detail;
-    switch (exp.frequency) {
-      case 'daily':
-        detail = '${exp.amount} × ${state.daysElapsed} days';
-        break;
-      case 'weekly':
-        detail = '(${exp.amount} / 7) × ${state.daysElapsed} days';
-        break;
-      case 'monthly':
-        detail = 'full monthly amount (assumed due)';
-        break;
-      default:
-        detail = '';
-    }
-    print('   ${exp.name}: $upToToday   ($detail)');
-  }
-  print('   Total planned up to today = $sumUpToToday\n');
-
-  print('5. PLANNED EXPENSES – REMAINING (after today)');
-  double sumRemaining = 0;
-  for (final exp in state.expectedExpenses) {
-    double remaining = state.plannedRemainingPerCategory[exp.name]!;
-    sumRemaining += remaining;
-    print('   ${exp.name}: $remaining');
-  }
-  print('   Total planned remaining = $sumRemaining\n');
-
-  print('6. DAILY ALLOWANCE & SAFELY SPEND BUDGET (PLANNING)');
-  print(
-      '   Original daily allowance = (Effective income - Total planned) / Days');
-  print(
-      '   = (${state.totalActualIncome} - $sumPlanned) / ${state.daysInPeriod}');
-  print('   = ${state.totalActualIncome - sumPlanned} / ${state.daysInPeriod}');
-  print('   = ${state.originalDailyAllowance.toStringAsFixed(2)} per day');
-  print(
-      '   Total safely spend budget (original) = Original daily allowance × Days');
-  print(
-      '   = ${state.originalDailyAllowance.toStringAsFixed(2)} × ${state.daysInPeriod}');
-  print('   = ${state.totalSafelySpendBudget.toStringAsFixed(2)}\n');
-
-  print('7. ACTUAL SPENDING (SO FAR)');
-  print('   Regular expenses:');
-  for (final entry in state.actualSpentPerCategory.entries) {
-    print('     ${entry.key}: ${entry.value}');
-  }
-  print('   Safely spend spent: ${state.safelySpendSpent}');
-  double totalSpent =
-      state.actualSpentPerCategory.values.fold(0.0, (a, b) => a + b) +
-          state.safelySpendSpent;
-  print('   Total actual spending: $totalSpent\n');
-
-  print('8. COMPARISON: PLANNED UP TO TODAY VS ACTUAL');
-  for (final exp in state.expectedExpenses) {
-    final planned = state.plannedUpToTodayPerCategory[exp.name]!;
-    final actual = state.actualSpentPerCategory[exp.name] ?? 0.0;
-    final diff = actual - planned;
+    totalPlanned += total;
     print(
-        '   ${exp.name}: planned $planned, actual $actual → ${diff >= 0 ? 'over' : 'under'} by ${diff.abs().toStringAsFixed(2)}');
+        '   ${exp.name} (${exp.frequency}): $total = ${exp.amount} × ${state.daysInPeriod} days (${exp.frequency == 'monthly' ? 'full monthly' : ''})');
+  }
+  print('   Total planned expenses = $totalPlanned\n');
+
+  // ---------- 4. PLANNED UP TO TODAY (PRORATED) ----------
+  print('4. PLANNED EXPENSES – UP TO TODAY (prorated)');
+  double totalUpToToday = 0;
+  for (var exp in expectedExpenses) {
+    double upToToday = state.plannedUpToTodayPerCategory[exp.name]!;
+    totalUpToToday += upToToday;
+    print(
+        '   ${exp.name}: $upToToday = ${exp.amount} × ${state.daysElapsed} days (${exp.frequency == 'monthly' ? 'full monthly' : ''})');
+  }
+  print('   Total planned up to today = $totalUpToToday\n');
+
+  // ---------- 5. PLANNED REMAINING (AFTER TODAY) – from engine ----------
+  print('5. PLANNED EXPENSES – REMAINING (after today)');
+  double totalRemaining = 0;
+  for (var exp in expectedExpenses) {
+    double remaining = state.plannedRemainingPerCategory[exp.name]!;
+    totalRemaining += remaining;
+    double total = state.plannedTotalPerCategory[exp.name]!;
+    double upToToday = state.plannedUpToTodayPerCategory[exp.name]!;
+    print(
+        '   ${exp.name}: remaining $remaining = $total (total) - $upToToday (up to today)');
+  }
+  print('   Total planned remaining = $totalRemaining\n');
+
+  // ---------- 6. DAILY ALLOWANCE & SAFELY SPEND BUDGET ----------
+  print('6. DAILY ALLOWANCE (ORIGINAL)');
+  double dailyAllowance = state.originalDailyAllowance;
+  print('   = ($actualSum - $totalPlanned) / ${state.daysInPeriod}');
+  print(
+      '   = ${actualSum - totalPlanned} / ${state.daysInPeriod} = ${dailyAllowance.toStringAsFixed(2)} per day');
+  double safelySpendBudget = state.totalSafelySpendBudget;
+  print(
+      '   Total safely spend budget = $dailyAllowance × ${state.daysInPeriod} = ${safelySpendBudget.toStringAsFixed(2)}\n');
+
+  // ---------- 7. ACTUAL SPENDING ----------
+  print('7. ACTUAL SPENDING (so far)');
+  for (var entry in state.actualSpentPerCategory.entries) {
+    print('   ${entry.key}: ${entry.value}');
+  }
+  print('   Safely spend spent: ${state.safelySpendSpent}\n');
+
+  // ---------- 8. COMPARISON: PLANNED UP TO TODAY VS ACTUAL ----------
+  print('8. COMPARISON: PLANNED UP TO TODAY VS ACTUAL');
+  for (var exp in expectedExpenses) {
+    double plannedUp = state.plannedUpToTodayPerCategory[exp.name]!;
+    double actual = state.actualSpentPerCategory[exp.name] ?? 0.0;
+    double diff = actual - plannedUp;
+    print(
+        '   ${exp.name}: planned $plannedUp, actual $actual → ${diff >= 0 ? 'over' : 'under'} by ${diff.abs().toStringAsFixed(2)}');
   }
   print(
-      '   Safely spend: budget for period ${state.totalSafelySpendBudget.toStringAsFixed(2)}, spent ${state.safelySpendSpent} → remaining ${state.remainingSafelySpend.toStringAsFixed(2)}\n');
+      '   Safely spend: budget ${state.totalSafelySpendBudget.toStringAsFixed(2)}, spent ${state.safelySpendSpent} → remaining ${state.remainingSafelySpend.toStringAsFixed(2)}\n');
 
+  // ---------- 9. CURRENT DAILY ALLOWANCE (REALISTIC) ----------
   print('9. CURRENT DAILY ALLOWANCE (REALISTIC)');
+  double remainingSafely = state.remainingSafelySpend;
+  double currentDaily = state.currentDailyAllowance;
   print(
-      '   Remaining safely spend = ${state.remainingSafelySpend.toStringAsFixed(2)}');
+      '   Remaining safely spend = ${state.totalSafelySpendBudget.toStringAsFixed(2)} - ${state.safelySpendSpent} = ${remainingSafely.toStringAsFixed(2)}');
   print('   Days left = ${state.daysLeft}');
-  print('   Current daily allowance = Remaining / Days left');
   print(
-      '   = ${state.remainingSafelySpend.toStringAsFixed(2)} / ${state.daysLeft}');
-  print(
-      '   = ${state.currentDailyAllowance.toStringAsFixed(2)} per day (from ${fmtDate(state.today)} to ${fmtDate(state.endDate)})\n');
+      '   Current daily allowance = $remainingSafely / ${state.daysLeft} = ${currentDaily.toStringAsFixed(2)} per day\n');
 
-  print('10. REMAINING PER CATEGORY (FULL PERIOD PLANNED - ACTUAL)');
-  for (final entry in state.remainingPerCategory.entries) {
-    print('   ${entry.key}: ${entry.value.toStringAsFixed(2)}');
+  // ---------- 10. REMAINING PER CATEGORY (FULL PERIOD) – from engine ----------
+  print('10. REMAINING PER CATEGORY (full period planned - actual)');
+  for (var exp in expectedExpenses) {
+    double remaining = state.remainingPerCategory[exp.name]!;
+    double total = state.plannedTotalPerCategory[exp.name]!;
+    double actual = state.actualSpentPerCategory[exp.name] ?? 0.0;
+    print('   ${exp.name}: $total - $actual = ${remaining.toStringAsFixed(2)}');
   }
 
-  print('\n=== END OF DETAILED REPORT ===');
+  // ---------- 11. JSON OUTPUT ----------
+  print('\n=== JSON OUTPUT ===');
+  final json = state.toJson();
+  const encoder = JsonEncoder.withIndent('  ');
+  print(encoder.convert(json));
 }

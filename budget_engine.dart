@@ -1,36 +1,66 @@
+import 'dart:convert';
 import 'package:equatable/equatable.dart';
 
+/// Represents a single income transaction (actual or expected).
 class IncomeEntry {
   final double amount;
   final DateTime date;
   final String? description;
+
   IncomeEntry({required this.amount, required this.date, this.description});
+
+  Map<String, dynamic> toJson() => {
+        'amount': amount,
+        'date': date.toIso8601String().substring(0, 10),
+        'description': description,
+      };
 }
 
+/// Represents a planned expense category.
 class ExpenseCategory {
   final String name;
-  final double amount;
+  final double amount; // per frequency
   final String frequency; // 'daily', 'weekly', 'monthly'
   final String? description;
-  ExpenseCategory(
-      {required this.name,
-      required this.amount,
-      required this.frequency,
-      this.description});
+
+  ExpenseCategory({
+    required this.name,
+    required this.amount,
+    required this.frequency,
+    this.description,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'amount': amount,
+        'frequency': frequency,
+        'description': description,
+      };
 }
 
+/// Represents a real expense transaction.
 class ExpenseTransaction {
-  final String category;
+  final String category; // must match an ExpenseCategory name
   final double amount;
   final DateTime date;
   final String? note;
-  ExpenseTransaction(
-      {required this.category,
-      required this.amount,
-      required this.date,
-      this.note});
+
+  ExpenseTransaction({
+    required this.category,
+    required this.amount,
+    required this.date,
+    this.note,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'category': category,
+        'amount': amount,
+        'date': date.toIso8601String().substring(0, 10),
+        'note': note,
+      };
 }
 
+/// The complete output of the budget engine.
 class BudgetState extends Equatable {
   final List<IncomeEntry> expectedIncomes;
   final List<IncomeEntry> actualIncomes;
@@ -115,8 +145,40 @@ class BudgetState extends Equatable {
         actualSpentPerCategory,
         remainingPerCategory,
       ];
+
+  /// Converts the entire budget state to a JSON object.
+  Map<String, dynamic> toJson() {
+    return {
+      'expectedIncomes': expectedIncomes.map((e) => e.toJson()).toList(),
+      'actualIncomes': actualIncomes.map((e) => e.toJson()).toList(),
+      'expectedExpenses': expectedExpenses.map((e) => e.toJson()).toList(),
+      'actualExpenses': actualExpenses.map((e) => e.toJson()).toList(),
+      'startDate': startDate.toIso8601String().substring(0, 10),
+      'endDate': endDate.toIso8601String().substring(0, 10),
+      'today': today.toIso8601String().substring(0, 10),
+      'daysInPeriod': daysInPeriod,
+      'daysElapsed': daysElapsed,
+      'daysLeft': daysLeft,
+      'totalExpectedIncome': totalExpectedIncome,
+      'totalActualIncome': totalActualIncome,
+      'plannedTotalPerCategory': plannedTotalPerCategory,
+      'totalPlannedExpenses': totalPlannedExpenses,
+      'plannedUpToTodayPerCategory': plannedUpToTodayPerCategory,
+      'totalPlannedUpToToday': totalPlannedUpToToday,
+      'plannedRemainingPerCategory': plannedRemainingPerCategory,
+      'totalPlannedRemaining': totalPlannedRemaining,
+      'originalDailyAllowance': originalDailyAllowance,
+      'totalSafelySpendBudget': totalSafelySpendBudget,
+      'safelySpendSpent': safelySpendSpent,
+      'remainingSafelySpend': remainingSafelySpend,
+      'currentDailyAllowance': currentDailyAllowance,
+      'actualSpentPerCategory': actualSpentPerCategory,
+      'remainingPerCategory': remainingPerCategory,
+    };
+  }
 }
 
+/// Core engine that computes all budget metrics from input data.
 class BudgetEngine {
   static BudgetState compute({
     required List<IncomeEntry> actualIncomes,
@@ -129,6 +191,7 @@ class BudgetEngine {
     final now = endDate ?? DateTime.now();
     final currentDate = today ?? DateTime.now();
 
+    // Determine start date: earliest actual income, or today if none
     final startDate = actualIncomes.isNotEmpty
         ? actualIncomes
             .map((e) => e.date)
@@ -141,22 +204,27 @@ class BudgetEngine {
     final daysLeft =
         (now.difference(currentDate).inDays + 1).clamp(0, daysInPeriod);
 
+    // Sum actual incomes (only those up to endDate)
     double totalActualIncome = 0;
     for (final inc in actualIncomes) {
-      if (inc.date.isBefore(now) || inc.date.isAtSameMomentAs(now))
+      if (inc.date.isBefore(now) || inc.date.isAtSameMomentAs(now)) {
         totalActualIncome += inc.amount;
+      }
     }
 
+    // Sum expected incomes (only those up to endDate)
     double totalExpectedIncome = 0;
     for (final inc in expectedIncomes) {
-      if (inc.date.isBefore(now) || inc.date.isAtSameMomentAs(now))
+      if (inc.date.isBefore(now) || inc.date.isAtSameMomentAs(now)) {
         totalExpectedIncome += inc.amount;
+      }
     }
 
+    // Effective income for daily allowance: use actual if any, otherwise expected
     final effectiveIncome =
         totalActualIncome > 0 ? totalActualIncome : totalExpectedIncome;
 
-    // Total planned for the whole period and prorated up to today
+    // ---- Planned expenses: total for period, up to today, and remaining ----
     final plannedTotal = <String, double>{};
     final plannedUpToToday = <String, double>{};
     final plannedRemaining = <String, double>{};
@@ -174,14 +242,13 @@ class BudgetEngine {
           total = (exp.amount / 7) * daysInPeriod;
           break;
         case 'monthly':
-          total = exp.amount; // full monthly amount
+          total = exp.amount;
           break;
         default:
           throw Exception('Unknown frequency: ${exp.frequency}');
       }
       plannedTotal[exp.name] = total;
 
-      // Prorated up to today
       double upToToday;
       switch (exp.frequency) {
         case 'daily':
@@ -191,8 +258,7 @@ class BudgetEngine {
           upToToday = (exp.amount / 7) * daysElapsed;
           break;
         case 'monthly':
-          // For monthly, we consider the full amount already due if we are past the start date.
-          // For simplicity, we allocate the full monthly amount to "up to today"
+          // For monthly, we consider the full amount due already (no prorating)
           upToToday = exp.amount;
           break;
         default:
@@ -200,7 +266,6 @@ class BudgetEngine {
       }
       plannedUpToToday[exp.name] = upToToday;
 
-      // Remaining = total - upToToday
       final remaining = total - upToToday;
       plannedRemaining[exp.name] = remaining;
 
@@ -209,11 +274,12 @@ class BudgetEngine {
       totalRemaining += remaining;
     }
 
+    // ---- Daily allowance and safely spend budget ----
     final originalDailyAllowance =
         (effectiveIncome - totalPlanned) / daysInPeriod;
     final totalSafelySpendBudget = originalDailyAllowance * daysInPeriod;
 
-    // Actual expenses aggregation
+    // ---- Aggregate actual expenses, separate Safely Spend ----
     final actualSpent = <String, double>{};
     double safelySpendSpent = 0;
     for (final trans in actualExpenses) {
@@ -229,7 +295,7 @@ class BudgetEngine {
     final currentDailyAllowance =
         daysLeft > 0 ? remainingSafelySpend / daysLeft : 0.0;
 
-    // Remaining per planned category (total planned - actual spent)
+    // ---- Remaining per planned category (total planned - actual spent) ----
     final remainingPerCat = <String, double>{};
     for (final exp in expectedExpenses) {
       final spent = actualSpent[exp.name] ?? 0.0;
