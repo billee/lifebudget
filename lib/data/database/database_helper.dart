@@ -19,14 +19,14 @@ class DatabaseHelper {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 5, // <--- version bumped because schema changed
+      version: 6, // <--- version bumped to 6 for 'source' column
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
   }
 
   Future<void> _createDB(Database db, int version) async {
-    // transactions table
+    // transactions table (now includes 'source' column)
     await db.execute('''
       CREATE TABLE IF NOT EXISTS ${DatabaseConstants.transactionsTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,11 +34,12 @@ class DatabaseHelper {
         ${DatabaseConstants.colJar} TEXT NOT NULL,
         ${DatabaseConstants.colAmount} REAL NOT NULL,
         ${DatabaseConstants.colDate} TEXT NOT NULL,
-        ${DatabaseConstants.colNote} TEXT
+        ${DatabaseConstants.colNote} TEXT,
+        source TEXT
       )
     ''');
 
-    // jar allocations table (unused but kept)
+    // jar allocations table
     await db.execute('''
       CREATE TABLE IF NOT EXISTS ${DatabaseConstants.jarAllocationsTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,7 +95,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // goals table – updated schema without daily_amount, using camelCase columns
+    // goals table
     await db.execute('''
       CREATE TABLE IF NOT EXISTS ${DatabaseConstants.goalsTable} (
         ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,7 +110,7 @@ class DatabaseHelper {
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
-    // Migration for version 4 (if you had it)
+    // Migrations from version 4
     if (oldVersion < 4) {
       await db.execute('''
         CREATE TABLE IF NOT EXISTS ${DatabaseConstants.jarAllocationsTable} (
@@ -121,10 +122,8 @@ class DatabaseHelper {
       ''');
     }
 
-    // Migration for version 5: drop old goals table (if it exists with old schema) and recreate
+    // Migration for version 5: drop old goals table and recreate
     if (oldVersion < 5) {
-      // To avoid losing existing goals, we could rename table, but during development it's simpler to drop.
-      // For production, you would write a proper migration. Here we drop and recreate.
       await db.execute('DROP TABLE IF EXISTS ${DatabaseConstants.goalsTable}');
       await db.execute('''
         CREATE TABLE IF NOT EXISTS ${DatabaseConstants.goalsTable} (
@@ -137,6 +136,16 @@ class DatabaseHelper {
           createdDate TEXT NOT NULL
         )
       ''');
+    }
+
+    // New migration for version 6: add 'source' column to transactions table
+    if (oldVersion < 6) {
+      try {
+        await db.execute(
+            'ALTER TABLE ${DatabaseConstants.transactionsTable} ADD COLUMN source TEXT');
+      } catch (e) {
+        // Column may already exist – ignore error
+      }
     }
   }
 }

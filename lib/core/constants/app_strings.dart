@@ -33,7 +33,6 @@ class AppStrings {
   static const navHome = "Home";
   static const navBudget = "Transactions";
   static const navJournal = "Journal";
-  static const navGoals = "Goals";
   static const navProfile = "Budget";
 
   // General

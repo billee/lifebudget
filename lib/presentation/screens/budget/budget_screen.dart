@@ -85,10 +85,17 @@ class BudgetScreen extends ConsumerWidget {
                         itemBuilder: (context, index) {
                           final t = transactions[index];
                           final isIncome = t.type == 'income';
+                          final mainText = isIncome
+                              ? (t.source ?? 'Income')
+                              : t.jar[0].toUpperCase() + t.jar.substring(1);
+                          final hasNote =
+                              t.note != null && t.note!.trim().isNotEmpty;
+
                           return Padding(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 6),
+                                horizontal: 16, vertical: 8),
                             child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Icon(
                                   isIncome
@@ -110,15 +117,29 @@ class BudgetScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
-                                  child: Text(
-                                    isIncome
-                                        ? 'Income'
-                                        : t.jar[0].toUpperCase() +
-                                            t.jar.substring(1),
-                                    style: const TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 14),
-                                    overflow: TextOverflow.ellipsis,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        mainText,
+                                        style: const TextStyle(
+                                            color: AppColors.textSecondary,
+                                            fontSize: 14),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (hasNote) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          t.note!,
+                                          style: const TextStyle(
+                                              color: AppColors.textSecondary,
+                                              fontSize: 12,
+                                              fontStyle: FontStyle.italic),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
                                 Text(

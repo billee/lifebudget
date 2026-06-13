@@ -107,8 +107,6 @@ class _HomeShellState extends State<HomeShell> {
                     icon: Icon(Icons.book_rounded),
                     label: AppStrings.navJournal),
                 BottomNavigationBarItem(
-                    icon: Icon(Icons.flag_rounded), label: AppStrings.navGoals),
-                BottomNavigationBarItem(
                     icon: Icon(Icons.person_rounded),
                     label: AppStrings.navProfile),
               ],

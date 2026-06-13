@@ -5,6 +5,7 @@ class TransactionModel {
   final double amount;
   final DateTime date;
   final String? note;
+  final String? source; // new field: income source (e.g., Salary, Freelance)
 
   TransactionModel({
     this.id,
@@ -13,6 +14,7 @@ class TransactionModel {
     required this.amount,
     required this.date,
     this.note,
+    this.source, // optional source
   });
 
   Map<String, dynamic> toMap() {
@@ -22,6 +24,7 @@ class TransactionModel {
       'amount': amount,
       'date': date.toIso8601String(),
       'note': note,
+      'source': source, // include source
     };
   }
 
@@ -33,6 +36,7 @@ class TransactionModel {
       amount: (map['amount'] as num).toDouble(),
       date: DateTime.parse(map['date'] as String),
       note: map['note'] as String?,
+      source: map['source'] as String?, // read source, may be null for old rows
     );
   }
 }

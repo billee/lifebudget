@@ -18,6 +18,16 @@ class _LogIncomeScreenState extends ConsumerState<LogIncomeScreen> {
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
 
+  // Dropdown state
+  String _selectedSource = 'Salary';
+  final List<String> _incomeSources = [
+    'Salary',
+    'Freelance',
+    'Gift',
+    'Refund',
+    'Other'
+  ];
+
   @override
   void dispose() {
     _amountController.dispose();
@@ -38,13 +48,13 @@ class _LogIncomeScreenState extends ConsumerState<LogIncomeScreen> {
 
     final transaction = TransactionModel(
       type: 'income',
-      jar:
-          'income', // jar doesn't matter for income, but we store for consistency
+      jar: 'income',
       amount: amount,
       date: DateTime.now(),
       note: _noteController.text.trim().isEmpty
           ? null
           : _noteController.text.trim(),
+      source: _selectedSource, // store selected source
     );
 
     final repo = ref.read(transactionRepositoryProvider);
@@ -93,10 +103,37 @@ class _LogIncomeScreenState extends ConsumerState<LogIncomeScreen> {
               ),
             ),
             const SizedBox(height: 20),
+
+            // Dropdown for source
+            const Text('Source',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _selectedSource,
+              decoration: InputDecoration(
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+              items: _incomeSources.map((source) {
+                return DropdownMenuItem(value: source, child: Text(source));
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _selectedSource = value;
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 20),
+
+            // Optional note field (still available for extra details)
             TextField(
               controller: _noteController,
               decoration: InputDecoration(
-                hintText: 'Source? (optional)',
+                hintText: 'Additional note (optional)',
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
