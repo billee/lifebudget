@@ -78,6 +78,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // Don't invalidate budgetStateProvider directly - let the cascade handle it
             // This ensures fresh data is used when budgetStateProvider recomputes
             debugPrint('[CheckForNewMonth] Providers invalidated');
+
+            // Schedule a delayed invalidation to pick up Safely Spend
+            // which is written by budgetStateProvider AFTER the initial refetch
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) {
+                debugPrint(
+                    '[CheckForNewMonth] Delayed invalidation for Safely Spend update');
+                ref.invalidate(expectedExpensesProvider);
+              }
+            });
           }
         }
       }
