@@ -43,7 +43,7 @@ final budgetStateProvider = FutureProvider<BudgetState>((ref) async {
   final now = DateTime.now();
   final endOfMonth = DateTime(now.year, now.month + 1, 0);
 
-  return BudgetEngine.compute(
+  final budgetState = BudgetEngine.compute(
     actualIncomes: actualIncomes,
     expectedIncomes: expectedIncomes,
     expectedExpenses: expectedExpensesList,
@@ -51,4 +51,26 @@ final budgetStateProvider = FutureProvider<BudgetState>((ref) async {
     endDate: endOfMonth,
     today: now,
   );
+
+  // Sync Safely Spend to database (idempotent, delta-based)
+  final safelySpendAmount = budgetState.totalSafelySpendBudget;
+  if (safelySpendAmount > 0) {
+    final monthStr = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    final repo = ref.read(expectedExpenseRepositoryProvider);
+
+    // Check if update is needed (delta > 1 to avoid redundant writes)
+    final existingSafelySpend = expectedExpenses
+        .where((e) =>
+            e.title.toLowerCase() == 'safely spend' && e.month == monthStr)
+        .firstOrNull;
+
+    if (existingSafelySpend == null ||
+        (existingSafelySpend.amount - safelySpendAmount).abs() > 1.0) {
+      await repo.upsertSafelySpend(safelySpendAmount, monthStr);
+      // Invalidate to refresh the expected expenses list
+      ref.invalidate(expectedExpensesProvider);
+    }
+  }
+
+  return budgetState;
 });

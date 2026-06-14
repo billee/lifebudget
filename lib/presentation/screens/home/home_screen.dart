@@ -68,6 +68,7 @@ class HomeScreen extends ConsumerWidget {
                       JarRowWidget(
                         expectedExpenses: budget.expectedExpenses,
                         jarSpent: budget.actualSpentPerCategory,
+                        plannedTotalPerCategory: budget.plannedTotalPerCategory,
                       ),
                       const SizedBox(height: 24),
                       const GoalsPreview(),

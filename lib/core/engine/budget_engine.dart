@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:equatable/equatable.dart';
 
 /// Represents a single income transaction (actual or expected).
@@ -228,38 +227,34 @@ class BudgetEngine {
 
     for (final exp in expectedExpenses) {
       double total;
+      double upToToday;
+      double remaining;
+
       switch (exp.frequency) {
         case 'daily':
+          // Daily: total for period, spent for elapsed days, remaining for future days
           total = exp.amount * daysInPeriod;
+          upToToday = exp.amount * daysElapsed;
+          remaining = exp.amount * daysLeft;
           break;
         case 'weekly':
+          // Weekly: total for period, spent for elapsed days, remaining for future days
           total = (exp.amount / 7) * daysInPeriod;
+          upToToday = (exp.amount / 7) * daysElapsed;
+          remaining = (exp.amount / 7) * daysLeft;
           break;
         case 'monthly':
+          // Monthly: full amount, none spent yet, full amount still needed
           total = exp.amount;
+          upToToday = 0;
+          remaining = exp.amount;
           break;
         default:
           throw Exception('Unknown frequency: ${exp.frequency}');
       }
+
       plannedTotal[exp.name] = total;
-
-      double upToToday;
-      switch (exp.frequency) {
-        case 'daily':
-          upToToday = exp.amount * daysElapsed;
-          break;
-        case 'weekly':
-          upToToday = (exp.amount / 7) * daysElapsed;
-          break;
-        case 'monthly':
-          upToToday = exp.amount;
-          break;
-        default:
-          upToToday = 0;
-      }
       plannedUpToToday[exp.name] = upToToday;
-
-      final remaining = total - upToToday;
       plannedRemaining[exp.name] = remaining;
 
       totalPlanned += total;
@@ -267,10 +262,7 @@ class BudgetEngine {
       totalRemaining += remaining;
     }
 
-    final originalDailyAllowance =
-        (effectiveIncome - totalPlanned) / daysInPeriod;
-    final totalSafelySpendBudget = originalDailyAllowance * daysInPeriod;
-
+    // Calculate actual spending first
     final actualSpent = <String, double>{};
     double safelySpendSpent = 0;
     for (final trans in actualExpenses) {
@@ -282,9 +274,30 @@ class BudgetEngine {
       }
     }
 
-    final remainingSafelySpend = totalSafelySpendBudget - safelySpendSpent;
-    final currentDailyAllowance =
-        daysLeft > 0 ? remainingSafelySpend / daysLeft : 0.0;
+    // Calculate total actual spending (all categories including safely spend)
+    final totalActualSpent =
+        actualSpent.values.fold(0.0, (a, b) => a + b) + safelySpendSpent;
+
+    // Money actually remaining = income - what's already spent
+    final actualMoneyRemaining = effectiveIncome - totalActualSpent;
+
+    // Free money = money remaining - future planned expenses only
+    // This gives the discretionary money available for remaining days
+    final freeMoney = actualMoneyRemaining - totalRemaining;
+
+    // Current daily allowance = free money / days left
+    final currentDailyAllowance = daysLeft > 0 ? freeMoney / daysLeft : 0.0;
+
+    // Total Safely Spend budget = free money available for remaining days
+    final totalSafelySpendBudget = freeMoney;
+
+    // Remaining Safely Spend = free money (since we're calculating from actual remaining)
+    final remainingSafelySpend = freeMoney;
+
+    // Original daily allowance (for reference - based on full period planning)
+    final originalDailyAllowance = daysInPeriod > 0
+        ? (effectiveIncome - totalPlanned) / daysInPeriod
+        : 0.0;
 
     final remainingPerCat = <String, double>{};
     for (final exp in expectedExpenses) {
