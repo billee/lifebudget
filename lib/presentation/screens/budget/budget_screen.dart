@@ -6,6 +6,7 @@ import '../../providers/transaction_provider.dart';
 import '../../widgets/common/lifebudget_scaffold.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../widgets/common/app_menu_button.dart';
+import '../../../services/month_transition_service.dart';
 
 class BudgetScreen extends ConsumerWidget {
   const BudgetScreen({super.key});
@@ -26,18 +27,32 @@ class BudgetScreen extends ConsumerWidget {
       body: transactionsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),
-        data: (transactions) {
+        data: (allTransactions) {
+          // Filter transactions by current month using full date comparison
+          final now =
+              MonthTransitionService.debugOverrideDate ?? DateTime.now();
+          final transactions = allTransactions.where((t) {
+            final date = t.date;
+            // Match by year AND month for consistency
+            return date.year == now.year && date.month == now.month;
+          }).toList();
+
           final summaries = summariesAsync.valueOrNull ?? {};
-          final totalIncome = summaries['__total_income__'] ?? 0.0;
+
+          // Calculate totals from filtered transactions
+          double totalIncome = 0;
+          for (final t in transactions) {
+            if (t.type == 'income') {
+              totalIncome += t.amount;
+            }
+          }
 
           double totalSpent = 0;
-          for (final entry in summaries.entries) {
-            // Skip special keys (they start with __)
-            if (entry.key.startsWith('__')) continue;
-            totalSpent += entry.value;
+          for (final t in transactions) {
+            if (t.type == 'expense' || t.type == 'savings') {
+              totalSpent += t.amount;
+            }
           }
-          // Add safely spend to total spent (it was actually spent)
-          totalSpent += summaries['__safely_spend_spent__'] ?? 0.0;
 
           return Column(
             children: [
