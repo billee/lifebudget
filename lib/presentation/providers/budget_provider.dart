@@ -81,8 +81,11 @@ final budgetStateProvider = FutureProvider<BudgetState>((ref) async {
 
   // Sync Safely Spend to database (idempotent, delta-based)
   final safelySpendAmount = budgetState.totalSafelySpendBudget;
+  debugPrint('[BudgetProvider] Safely Spend amount: $safelySpendAmount');
+
   if (safelySpendAmount > 0) {
     final monthStr = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    debugPrint('[BudgetProvider] Syncing Safely Spend for month: $monthStr');
     final repo = ref.read(expectedExpenseRepositoryProvider);
 
     // Check if update is needed (delta > 1 to avoid redundant writes)
@@ -91,12 +94,22 @@ final budgetStateProvider = FutureProvider<BudgetState>((ref) async {
             e.title.toLowerCase() == 'safely spend' && e.month == monthStr)
         .firstOrNull;
 
+    debugPrint(
+        '[BudgetProvider] Existing Safely Spend: ${existingSafelySpend?.amount ?? "null"}');
+
     if (existingSafelySpend == null ||
         (existingSafelySpend.amount - safelySpendAmount).abs() > 1.0) {
+      debugPrint(
+          '[BudgetProvider] Writing Safely Spend to database: $safelySpendAmount');
       await repo.upsertSafelySpend(safelySpendAmount, monthStr);
+      debugPrint('[BudgetProvider] Safely Spend written successfully');
       // Don't invalidate here - it causes infinite loop
       // The UI will refresh naturally when needed
+    } else {
+      debugPrint('[BudgetProvider] Safely Spend unchanged (delta <= 1.0)');
     }
+  } else {
+    debugPrint('[BudgetProvider] Safely Spend is 0 or negative, skipping sync');
   }
 
   return budgetState;

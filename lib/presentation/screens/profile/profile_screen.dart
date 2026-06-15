@@ -7,6 +7,7 @@ import '../../../data/models/expected_expense_model.dart';
 import '../../../data/models/goal_model.dart';
 import '../../../data/models/transaction_model.dart';
 import '../../providers/expected_expenses_provider.dart';
+import '../../providers/budget_provider.dart';
 import '../../providers/goal_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/transaction_provider.dart';
@@ -250,6 +251,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Listen to budget state changes and refresh expected expenses
+    // This ensures Safely Spend is always up to date
+    ref.listen(budgetStateProvider, (previous, next) {
+      // When budget state changes, Safely Spend may have been updated
+      // Invalidate expectedExpensesProvider to pick up the latest Safely Spend
+      ref.invalidate(expectedExpensesProvider);
+    });
+
     final expensesAsync = ref.watch(expectedExpensesProvider);
     final nameAsync = ref.watch(userNameProvider);
     final currentName = nameAsync.value ?? '';
