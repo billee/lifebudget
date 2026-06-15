@@ -48,16 +48,37 @@ final budgetStateProvider = FutureProvider<BudgetState>((ref) async {
   // Use full date format consistently (YYYY-MM)
   final currentMonthStr = '${now.year}-${now.month.toString().padLeft(2, '0')}';
 
+  // Calculate actual spent per category first (needed for monthly expense adjustment)
+  final actualSpentPerCat = <String, double>{};
+  for (final t in currentMonthTransactions) {
+    if (t.type == 'expense' || t.type == 'savings') {
+      final cat = t.jar.toLowerCase();
+      actualSpentPerCat[cat] = (actualSpentPerCat[cat] ?? 0) + t.amount;
+    }
+  }
+
   final expectedExpensesList = expectedExpenses
       .where((e) =>
           e.title.toLowerCase() != 'safely spend' && // exclude safely spend
           e.month == currentMonthStr) // match current month only
-      .map((e) => ExpenseCategory(
-            name: e.title.toLowerCase(),
-            amount: e.amount,
-            frequency: e.frequency,
-          ))
-      .toList();
+      .map((e) {
+    final name = e.title.toLowerCase();
+    final freq = e.frequency;
+    var amount = e.amount;
+
+    // For monthly expenses: adjust for amount already spent
+    // If fully paid, remaining is 0. If partially paid, use remaining amount.
+    if (freq == 'monthly') {
+      final spent = actualSpentPerCat[name] ?? 0;
+      amount = (amount - spent).clamp(0.0, double.infinity);
+    }
+
+    return ExpenseCategory(
+      name: name,
+      amount: amount,
+      frequency: freq,
+    );
+  }).toList();
 
   // Convert actual expenses (only current month, normalize category names)
   final actualExpensesList = currentMonthTransactions

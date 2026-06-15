@@ -40,13 +40,20 @@ class JarRowWidget extends StatelessWidget {
     final spent = jarSpent[exp.name] ?? 0.0;
     final isDaily = exp.frequency == 'daily';
     final isWeekly = exp.frequency == 'weekly';
+    final isMonthly = exp.frequency == 'monthly';
 
     // For daily/weekly, use the monthly total from plannedTotalPerCategory
     final monthlyBudget = plannedTotalPerCategory[exp.name] ?? exp.amount;
     final remaining = monthlyBudget - spent;
-    final isOverBudget = remaining < 0;
-    final statusColor = isOverBudget ? AppColors.critical : AppColors.onTrack;
-    final statusText = isOverBudget ? 'Over budget' : 'On track';
+
+    // For monthly: check if fully paid (remaining budget is 0)
+    final isMonthlyPaid = isMonthly && exp.amount <= 0;
+    final isOverBudget = !isMonthlyPaid && remaining < 0;
+    final statusColor = isMonthlyPaid
+        ? AppColors.onTrack
+        : (isOverBudget ? AppColors.critical : AppColors.onTrack);
+    final statusText =
+        isMonthlyPaid ? 'Paid' : (isOverBudget ? 'Over budget' : 'On track');
 
     // Build budget label based on frequency (include total)
     String budgetLabel;
@@ -57,6 +64,14 @@ class JarRowWidget extends StatelessWidget {
       final weeksLeft = (daysLeft / 7).ceil();
       budgetLabel =
           '${formatAmount(exp.amount)}/week × $weeksLeft weeks = ${formatAmount(exp.amount * weeksLeft)}';
+    } else if (isMonthly) {
+      if (isMonthlyPaid) {
+        budgetLabel = 'Paid in full';
+      } else {
+        budgetLabel = spent > 0
+            ? '${formatAmount(monthlyBudget)} (${formatAmount(exp.amount)} left)'
+            : formatAmount(monthlyBudget);
+      }
     } else {
       budgetLabel = formatAmount(exp.amount);
     }
