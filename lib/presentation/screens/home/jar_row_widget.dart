@@ -7,12 +7,16 @@ class JarRowWidget extends StatelessWidget {
   final List<ExpenseCategory> expectedExpenses;
   final Map<String, double> jarSpent;
   final Map<String, double> plannedTotalPerCategory;
+  final int daysLeft;
+  final int daysInPeriod;
 
   const JarRowWidget({
     super.key,
     required this.expectedExpenses,
     required this.jarSpent,
     this.plannedTotalPerCategory = const {},
+    this.daysLeft = 0,
+    this.daysInPeriod = 30,
   });
 
   @override
@@ -44,6 +48,19 @@ class JarRowWidget extends StatelessWidget {
     final statusColor = isOverBudget ? AppColors.critical : AppColors.onTrack;
     final statusText = isOverBudget ? 'Over budget' : 'On track';
 
+    // Build budget label based on frequency (include total)
+    String budgetLabel;
+    if (isDaily) {
+      budgetLabel =
+          '${formatAmount(exp.amount)}/day × $daysLeft days = ${formatAmount(exp.amount * daysLeft)}';
+    } else if (isWeekly) {
+      final weeksLeft = (daysLeft / 7).ceil();
+      budgetLabel =
+          '${formatAmount(exp.amount)}/week × $weeksLeft weeks = ${formatAmount(exp.amount * weeksLeft)}';
+    } else {
+      budgetLabel = formatAmount(exp.amount);
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -69,37 +86,28 @@ class JarRowWidget extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
+          // Budget label and status on same row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                isDaily || isWeekly
-                    ? 'Budget: ${formatAmount(monthlyBudget)} (${formatAmount(exp.amount)}/${exp.frequency})'
-                    : 'Budget: ${formatAmount(exp.amount)}',
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary),
+              Expanded(
+                child: Text(
+                  budgetLabel,
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
+                ),
               ),
-              Text(
-                'Remaining: ${formatAmount(remaining > 0 ? remaining : 0)}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: remaining > 0 ? AppColors.onTrack : AppColors.critical,
-                  fontWeight: FontWeight.w500,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  statusText,
+                  style: TextStyle(fontSize: 11, color: statusColor),
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              statusText,
-              style: TextStyle(fontSize: 11, color: statusColor),
-            ),
           ),
         ],
       ),

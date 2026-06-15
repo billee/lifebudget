@@ -251,15 +251,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Listen to budget state changes and refresh expected expenses
-    // This ensures Safely Spend is always up to date
-    ref.listen(budgetStateProvider, (previous, next) {
-      // When budget state changes, Safely Spend may have been updated
-      // Invalidate expectedExpensesProvider to pick up the latest Safely Spend
-      ref.invalidate(expectedExpensesProvider);
-    });
-
     final expensesAsync = ref.watch(expectedExpensesProvider);
+    final budgetAsync = ref.watch(budgetStateProvider);
     final nameAsync = ref.watch(userNameProvider);
     final currentName = nameAsync.value ?? '';
 
@@ -389,6 +382,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => Center(child: Text('Error: $err')),
               data: (expenses) {
+                // Get the calculated Safely Spend from budget state
+                final calculatedSafelySpend =
+                    budgetAsync.valueOrNull?.totalSafelySpendBudget ?? 0.0;
+
                 if (expenses.isEmpty) {
                   return const Center(
                     child: Text(
@@ -404,6 +401,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   itemCount: expenses.length,
                   itemBuilder: (context, index) {
                     final exp = expenses[index];
+                    final isSafelySpend =
+                        exp.title.toLowerCase() == 'safely spend';
+                    // Use calculated Safely Spend from budget state for display
+                    final displayAmount =
+                        isSafelySpend ? calculatedSafelySpend : exp.amount;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
@@ -411,19 +413,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             style:
                                 const TextStyle(fontWeight: FontWeight.w600)),
                         subtitle: Text(
-                          '${exp.frequency[0].toUpperCase()}${exp.frequency.substring(1)} — ${formatAmount(exp.amount)}',
+                          '${exp.frequency[0].toUpperCase()}${exp.frequency.substring(1)} — ${formatAmount(displayAmount)}',
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (exp.title.toLowerCase() != 'safely spend')
+                            if (!isSafelySpend)
                               IconButton(
                                 icon: const Icon(Icons.edit,
                                     color: AppColors.primary),
                                 onPressed: () => _edit(exp),
                               ),
-                            if (exp.amount > 0 &&
-                                exp.title.toLowerCase() != 'safely spend')
+                            if (exp.amount > 0 && !isSafelySpend)
                               IconButton(
                                 icon: const Icon(Icons.delete,
                                     color: AppColors.critical),
