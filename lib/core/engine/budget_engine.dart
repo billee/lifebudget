@@ -198,8 +198,30 @@ class BudgetEngine {
     final daysInPeriod = now.difference(startDate).inDays + 1;
     final daysElapsed =
         (currentDate.difference(startDate).inDays + 1).clamp(0, daysInPeriod);
-    final daysLeft =
+    var daysLeft =
         (now.difference(currentDate).inDays + 1).clamp(0, daysInPeriod);
+
+    // Check if any daily expense has been spent today
+    final todayStart =
+        DateTime(currentDate.year, currentDate.month, currentDate.day);
+    final todayEnd = todayStart.add(const Duration(days: 1));
+
+    // Get list of daily expense categories
+    final dailyCategories = expectedExpenses
+        .where((e) => e.frequency == 'daily')
+        .map((e) => e.name.toLowerCase())
+        .toSet();
+
+    // Check if any daily expense was spent today
+    final hasDailySpendingToday = actualExpenses.any((t) =>
+        dailyCategories.contains(t.category.toLowerCase()) &&
+            t.date.isAtSameMomentAs(todayStart) ||
+        (t.date.isAfter(todayStart) && t.date.isBefore(todayEnd)));
+
+    // If daily expense was spent today, exclude today from remaining days
+    if (hasDailySpendingToday) {
+      daysLeft = (daysLeft - 1).clamp(0, daysInPeriod);
+    }
 
     double totalActualIncome = 0;
     for (final inc in actualIncomes) {
