@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../../services/notification_service.dart';
 import '../../widgets/common/lifebudget_scaffold.dart';
 import '../../widgets/common/app_menu_button.dart';
 
@@ -51,6 +52,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (picked != null) {
       await ref.read(reminderSettingsProvider.notifier).setTime(picked);
+      // Reschedule notification with new time if enabled
+      if (settings.enabled) {
+        await NotificationService.instance.scheduleDailyReminder(
+          enabled: true,
+          time: picked,
+        );
+      }
     }
   }
 
@@ -133,8 +141,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   : const Text('Off'),
               value: reminderSettings.enabled,
               activeColor: AppColors.primary,
-              onChanged: (value) {
-                ref.read(reminderSettingsProvider.notifier).setEnabled(value);
+              onChanged: (value) async {
+                await ref
+                    .read(reminderSettingsProvider.notifier)
+                    .setEnabled(value);
+                await NotificationService.instance.scheduleDailyReminder(
+                  enabled: value,
+                  time: reminderSettings.time,
+                );
+                // Show helpful message when enabling
+                if (value && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text(
+                        'Reminder set! Make sure LifeBudget notifications are enabled in your phone settings.',
+                      ),
+                      backgroundColor: AppColors.primary,
+                      duration: const Duration(seconds: 4),
+                      action: SnackBarAction(
+                        label: 'OK',
+                        textColor: Colors.white,
+                        onPressed: () {},
+                      ),
+                    ),
+                  );
+                }
               },
             ),
             if (reminderSettings.enabled)
@@ -146,6 +177,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const Icon(Icons.access_time, color: AppColors.primary),
                 onTap: _selectReminderTime,
               ),
+            ListTile(
+              leading: const SizedBox(width: 40),
+              title: const Text('Test Notification'),
+              subtitle: const Text('Tap to test if notifications work'),
+              trailing: const Icon(Icons.notifications_active,
+                  color: AppColors.primary),
+              onTap: () async {
+                await NotificationService.instance.showTestNotification();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Test notification sent! Check your notifications.'),
+                      backgroundColor: AppColors.primary,
+                    ),
+                  );
+                }
+              },
+            ),
           ]),
 
           const SizedBox(height: 24),

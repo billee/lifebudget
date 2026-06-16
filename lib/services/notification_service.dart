@@ -34,14 +34,22 @@ class NotificationService {
     // Cancel any existing daily notification (ID 0)
     await _plugin.cancel(0);
 
-    if (!enabled) return;
+    if (!enabled) {
+      debugPrint('[NotificationService] Reminder disabled, cancelled.');
+      return;
+    }
+
+    debugPrint(
+        '[NotificationService] Scheduling reminder for ${time.hour}:${time.minute}');
 
     final androidDetails = AndroidNotificationDetails(
-      'daily_reminder',
+      'daily_reminder_v2',
       'Daily Check-in',
       channelDescription: 'A gentle reminder to check your budget',
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
     );
 
     final details = NotificationDetails(
@@ -57,9 +65,13 @@ class NotificationService {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
 
+    debugPrint('[NotificationService] Next notification at: $scheduledDate');
+
     // Convert to TZDateTime using local timezone
     final tz.TZDateTime tzScheduled =
         tz.TZDateTime.from(scheduledDate, tz.local);
+
+    debugPrint('[NotificationService] TZDateTime: $tzScheduled');
 
     await _plugin.zonedSchedule(
       0,
@@ -67,15 +79,46 @@ class NotificationService {
       'Hey! How did today go money‑wise? Just 30 seconds.',
       tzScheduled,
       details,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
+
+    debugPrint('[NotificationService] Reminder scheduled successfully!');
   }
 
   /// Cancel the daily reminder
   Future<void> cancelDailyReminder() async {
     await _plugin.cancel(0);
+  }
+
+  /// Show a test notification immediately
+  Future<void> showTestNotification() async {
+    debugPrint('[NotificationService] Showing test notification...');
+
+    final androidDetails = AndroidNotificationDetails(
+      'daily_reminder',
+      'Daily Check-in',
+      channelDescription: 'A gentle reminder to check your budget',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    final details = NotificationDetails(
+      android: androidDetails,
+      iOS: const DarwinNotificationDetails(),
+    );
+
+    await _plugin.show(
+      999,
+      'LifeBudget Test',
+      'This is a test notification. If you see this, notifications are working!',
+      details,
+    );
+
+    debugPrint('[NotificationService] Test notification shown!');
   }
 }
