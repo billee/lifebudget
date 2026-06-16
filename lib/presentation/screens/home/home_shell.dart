@@ -104,9 +104,6 @@ class _HomeShellState extends State<HomeShell> {
                     icon: Icon(Icons.account_balance_wallet_rounded),
                     label: AppStrings.navBudget),
                 BottomNavigationBarItem(
-                    icon: Icon(Icons.book_rounded),
-                    label: AppStrings.navJournal),
-                BottomNavigationBarItem(
                     icon: Icon(Icons.person_rounded),
                     label: AppStrings.navProfile),
               ],

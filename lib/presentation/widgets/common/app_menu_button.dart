@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import 'info_screen.dart';
+import '../../screens/settings/settings_screen.dart';
 
 /// Reusable hamburger menu button that shows a popup with:
 /// Privacy Policy, Terms of Use, How to Use, Tips, and About.
@@ -17,9 +18,24 @@ class AppMenuButton extends StatelessWidget {
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onSelected: (value) {
-        _navigateToInfo(context, value);
+        if (value == 'settings') {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const SettingsScreen()),
+          );
+        } else {
+          _navigateToInfo(context, value);
+        }
       },
       itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'settings',
+          child: Row(children: [
+            Icon(Icons.settings, size: 20, color: AppColors.primary),
+            SizedBox(width: 12),
+            Text('Settings'),
+          ]),
+        ),
+        const PopupMenuDivider(),
         const PopupMenuItem(
           value: 'how_to_use',
           child: Row(children: [

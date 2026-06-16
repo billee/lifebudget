@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../data/models/expected_expense_model.dart';
@@ -9,7 +8,6 @@ import '../../../data/models/transaction_model.dart';
 import '../../providers/expected_expenses_provider.dart';
 import '../../providers/budget_provider.dart';
 import '../../providers/goal_provider.dart';
-import '../../providers/user_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/slip_up_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -30,13 +28,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _amountController = TextEditingController();
   int? _editingId;
 
-  final _nameController = TextEditingController();
-
   @override
   void dispose() {
     _titleController.dispose();
     _amountController.dispose();
-    _nameController.dispose();
     super.dispose();
   }
 
@@ -193,14 +188,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Future<void> _saveName() async {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_name', name);
-    ref.invalidate(userNameProvider);
-  }
-
   void _showFreshStartDialog() {
     showDialog(
       context: context,
@@ -253,8 +240,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final expensesAsync = ref.watch(expectedExpensesProvider);
     final budgetAsync = ref.watch(budgetStateProvider);
-    final nameAsync = ref.watch(userNameProvider);
-    final currentName = nameAsync.value ?? '';
 
     return LifeBudgetScaffold(
       appBar: AppBar(
@@ -268,37 +253,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Your Name',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _nameController..text = currentName,
-                    decoration: InputDecoration(
-                      hintText: 'Enter your name',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: _saveName,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Save'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            const Divider(),
-            const SizedBox(height: 16),
             Text(
               _editingId == null
                   ? 'Add Expected Expense'

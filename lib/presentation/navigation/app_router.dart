@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/home/home_shell.dart';
 import '../screens/budget/budget_screen.dart';
-import '../screens/journal/journal_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/transactions/log_expense_screen.dart';
 import '../screens/transactions/log_income_screen.dart';
@@ -48,13 +47,6 @@ final appRouter = GoRouter(
             GoRoute(
                 path: '/budget',
                 builder: (context, state) => const BudgetScreen()),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-                path: '/journal',
-                builder: (context, state) => const JournalScreen()),
           ],
         ),
         StatefulShellBranch(
