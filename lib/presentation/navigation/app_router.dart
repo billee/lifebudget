@@ -4,6 +4,8 @@ import '../screens/home/home_screen.dart';
 import '../screens/home/home_shell.dart';
 import '../screens/budget/budget_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../screens/settings/settings_screen.dart';
+import '../widgets/common/info_screen.dart';
 import '../screens/transactions/log_expense_screen.dart';
 import '../screens/transactions/log_income_screen.dart';
 import '../screens/jars/jar_detail_screen.dart';
@@ -52,8 +54,22 @@ final appRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-                path: '/profile',
-                builder: (context, state) => const ProfileScreen()),
+              path: '/profile',
+              builder: (context, state) => const ProfileScreen(),
+              routes: [
+                GoRoute(
+                  path: 'settings',
+                  builder: (context, state) => const SettingsScreen(),
+                ),
+                GoRoute(
+                  path: 'info/:type',
+                  builder: (context, state) {
+                    final type = state.pathParameters['type']!;
+                    return InfoScreen.fromType(type);
+                  },
+                ),
+              ],
+            ),
           ],
         ),
       ],
