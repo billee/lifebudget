@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import 'app_menu_button.dart';
 
 /// Reusable full-screen info page (Privacy, Terms, Tips, About, etc.)
 class InfoScreen extends StatelessWidget {
@@ -16,6 +17,7 @@ class InfoScreen extends StatelessWidget {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: const [AppMenuButton()],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

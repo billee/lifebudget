@@ -237,12 +237,6 @@ class BudgetEngine {
           upToToday = exp.amount * daysElapsed;
           remaining = exp.amount * daysLeft;
           break;
-        case 'weekly':
-          // Weekly: total for period, spent for elapsed days, remaining for future days
-          total = (exp.amount / 7) * daysInPeriod;
-          upToToday = (exp.amount / 7) * daysElapsed;
-          remaining = (exp.amount / 7) * daysLeft;
-          break;
         case 'monthly':
           // Monthly: full amount, none spent yet, full amount still needed
           total = exp.amount;

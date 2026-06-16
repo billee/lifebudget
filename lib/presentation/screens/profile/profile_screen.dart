@@ -10,8 +10,6 @@ import '../../providers/budget_provider.dart';
 import '../../providers/goal_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/slip_up_provider.dart';
-import '../../providers/settings_provider.dart';
-import '../../../services/notification_service.dart';
 import '../../widgets/common/lifebudget_scaffold.dart';
 import '../../widgets/common/app_menu_button.dart';
 
@@ -188,54 +186,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  void _showFreshStartDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Start Fresh?'),
-        content: const Text(
-          'This will clear all your logged expenses and income for this month. '
-          'They’ll be saved in your history, but your current spending will reset to zero.\n\n'
-          'Are you sure?',
-          style: TextStyle(height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final month =
-                  '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
-              final repo = ref.read(transactionRepositoryProvider);
-              await repo.archiveMonth(month);
-
-              ref.invalidate(allTransactionsProvider);
-              ref.invalidate(jarSummariesProvider);
-              ref.invalidate(daysSinceLastSlipUpProvider);
-
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Fresh start! Your month is clean.'),
-                    backgroundColor: AppColors.primary,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Yes, Start Fresh'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final expensesAsync = ref.watch(expectedExpensesProvider);
@@ -391,105 +341,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   },
                 );
               },
-            ),
-            const SizedBox(height: 24),
-            const Divider(),
-            const SizedBox(height: 16),
-            const Text(
-              'Daily Check‑in Reminder',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'A gentle nudge to stay on track. No pressure.',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 12),
-            Consumer(
-              builder: (context, ref, _) {
-                final settings = ref.watch(reminderSettingsProvider);
-                return Column(
-                  children: [
-                    SwitchListTile(
-                      title: const Text('Enable daily reminder'),
-                      value: settings.enabled,
-                      onChanged: (val) {
-                        ref
-                            .read(reminderSettingsProvider.notifier)
-                            .setEnabled(val);
-                        NotificationService.instance.scheduleDailyReminder(
-                          enabled: val,
-                          time: settings.time,
-                        );
-                      },
-                      activeColor: AppColors.primary,
-                    ),
-                    if (settings.enabled)
-                      ListTile(
-                        title: const Text('Reminder time'),
-                        subtitle: Text(settings.time.format(context)),
-                        trailing: const Icon(Icons.access_time),
-                        onTap: () async {
-                          final picked = await showTimePicker(
-                            context: context,
-                            initialTime: settings.time,
-                          );
-                          if (picked != null) {
-                            ref
-                                .read(reminderSettingsProvider.notifier)
-                                .setTime(picked);
-                            NotificationService.instance.scheduleDailyReminder(
-                              enabled: true,
-                              time: picked,
-                            );
-                          }
-                        },
-                      ),
-                    const SizedBox(height: 16),
-                    SwitchListTile(
-                      title: const Text('Survival Budget Mode'),
-                      subtitle: const Text(
-                          'Show only essentials – food, transport, rent, utilities'),
-                      value: settings.survivalMode,
-                      onChanged: (val) {
-                        ref
-                            .read(reminderSettingsProvider.notifier)
-                            .setSurvivalMode(val);
-                      },
-                      activeColor: AppColors.primary,
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-            const Divider(),
-            const SizedBox(height: 16),
-            const Text(
-              'Need a fresh start?',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'If this month feels too heavy, you can wipe your spending clean and start over. '
-              'Your past transactions will be saved in your history.',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: _showFreshStartDialog,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Start Fresh This Month',
-                    style: TextStyle(fontSize: 16)),
-              ),
             ),
           ],
         ),

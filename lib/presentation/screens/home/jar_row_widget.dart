@@ -39,10 +39,9 @@ class JarRowWidget extends StatelessWidget {
   Widget _buildEnvelope(ExpenseCategory exp) {
     final spent = jarSpent[exp.name] ?? 0.0;
     final isDaily = exp.frequency == 'daily';
-    final isWeekly = exp.frequency == 'weekly';
     final isMonthly = exp.frequency == 'monthly';
 
-    // For daily/weekly, use the monthly total from plannedTotalPerCategory
+    // For daily, use the monthly total from plannedTotalPerCategory
     final monthlyBudget = plannedTotalPerCategory[exp.name] ?? exp.amount;
     final remaining = monthlyBudget - spent;
 
@@ -60,10 +59,6 @@ class JarRowWidget extends StatelessWidget {
     if (isDaily) {
       budgetLabel =
           '${formatAmount(exp.amount)}/day × $daysLeft days = ${formatAmount(exp.amount * daysLeft)}';
-    } else if (isWeekly) {
-      final weeksLeft = (daysLeft / 7).ceil();
-      budgetLabel =
-          '${formatAmount(exp.amount)}/week × $weeksLeft weeks = ${formatAmount(exp.amount * weeksLeft)}';
     } else if (isMonthly) {
       if (isMonthlyPaid) {
         budgetLabel = 'Paid in full';
