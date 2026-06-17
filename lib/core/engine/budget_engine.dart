@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 
 /// Represents a single income transaction (actual or expected).
 class IncomeEntry {
@@ -71,6 +72,7 @@ class BudgetState extends Equatable {
   final int daysInPeriod;
   final int daysElapsed; // days from startDate to today (inclusive)
   final int daysLeft;
+  final Map<String, int> daysLeftPerCategory; // per-category days remaining
   final double totalExpectedIncome;
   final double totalActualIncome;
   final Map<String, double> plannedTotalPerCategory;
@@ -99,6 +101,7 @@ class BudgetState extends Equatable {
     required this.daysInPeriod,
     required this.daysElapsed,
     required this.daysLeft,
+    required this.daysLeftPerCategory,
     required this.totalExpectedIncome,
     required this.totalActualIncome,
     required this.plannedTotalPerCategory,
@@ -128,6 +131,7 @@ class BudgetState extends Equatable {
         daysInPeriod,
         daysElapsed,
         daysLeft,
+        daysLeftPerCategory,
         totalExpectedIncome,
         totalActualIncome,
         plannedTotalPerCategory,
@@ -157,6 +161,7 @@ class BudgetState extends Equatable {
       'daysInPeriod': daysInPeriod,
       'daysElapsed': daysElapsed,
       'daysLeft': daysLeft,
+      'daysLeftPerCategory': daysLeftPerCategory,
       'totalExpectedIncome': totalExpectedIncome,
       'totalActualIncome': totalActualIncome,
       'plannedTotalPerCategory': plannedTotalPerCategory,
@@ -183,45 +188,67 @@ class BudgetEngine {
     required List<IncomeEntry> expectedIncomes,
     required List<ExpenseCategory> expectedExpenses,
     List<ExpenseTransaction> actualExpenses = const [],
+    DateTime? startDate,
     DateTime? endDate,
     DateTime? today,
   }) {
     final now = endDate ?? DateTime.now();
     final currentDate = today ?? DateTime.now();
 
-    final startDate = actualIncomes.isNotEmpty
-        ? actualIncomes
-            .map((e) => e.date)
-            .reduce((a, b) => a.isBefore(b) ? a : b)
-        : currentDate;
+    // Use provided startDate, or calculate from earliest income, or use first of month
+    final periodStart = startDate ??
+        (actualIncomes.isNotEmpty
+            ? actualIncomes
+                .map((e) => e.date)
+                .reduce((a, b) => a.isBefore(b) ? a : b)
+            : DateTime(currentDate.year, currentDate.month, 1));
 
-    final daysInPeriod = now.difference(startDate).inDays + 1;
+    final daysInPeriod = now.difference(periodStart).inDays + 1;
     final daysElapsed =
-        (currentDate.difference(startDate).inDays + 1).clamp(0, daysInPeriod);
-    var daysLeft =
-        (now.difference(currentDate).inDays + 1).clamp(0, daysInPeriod);
+        (currentDate.difference(periodStart).inDays + 1).clamp(0, daysInPeriod);
 
-    // Check if any daily expense has been spent today
+    // Normalize dates to midnight for accurate day calculation
+    final currentDateMidnight =
+        DateTime(currentDate.year, currentDate.month, currentDate.day);
+    final endDateMidnight = DateTime(now.year, now.month, now.day);
+    final daysLeftBase =
+        (endDateMidnight.difference(currentDateMidnight).inDays + 1)
+            .clamp(0, daysInPeriod);
+
+    debugPrint(
+        '[BudgetEngine] now (endDate): $now, currentDate (today): $currentDate');
+    debugPrint(
+        '[BudgetEngine] daysInPeriod: $daysInPeriod, daysElapsed: $daysElapsed, daysLeftBase: $daysLeftBase');
+
+    // Check today's date range
     final todayStart =
         DateTime(currentDate.year, currentDate.month, currentDate.day);
     final todayEnd = todayStart.add(const Duration(days: 1));
 
-    // Get list of daily expense categories
-    final dailyCategories = expectedExpenses
-        .where((e) => e.frequency == 'daily')
-        .map((e) => e.name.toLowerCase())
-        .toSet();
-
-    // Check if any daily expense was spent today
-    final hasDailySpendingToday = actualExpenses.any((t) =>
-        dailyCategories.contains(t.category.toLowerCase()) &&
-            t.date.isAtSameMomentAs(todayStart) ||
-        (t.date.isAfter(todayStart) && t.date.isBefore(todayEnd)));
-
-    // If daily expense was spent today, exclude today from remaining days
-    if (hasDailySpendingToday) {
-      daysLeft = (daysLeft - 1).clamp(0, daysInPeriod);
+    // Calculate daysLeft per daily expense category
+    final daysLeftPerCategory = <String, int>{};
+    for (final exp in expectedExpenses.where((e) => e.frequency == 'daily')) {
+      final category = exp.name.toLowerCase();
+      final hasSpendingToday = actualExpenses.any((t) {
+        final isThisCategory = t.category.toLowerCase() == category;
+        final isToday = t.date.isAfter(
+                todayStart.subtract(const Duration(milliseconds: 1))) &&
+            t.date.isBefore(todayEnd);
+        return isThisCategory && isToday;
+      });
+      daysLeftPerCategory[category] = hasSpendingToday
+          ? (daysLeftBase - 1).clamp(0, daysInPeriod)
+          : daysLeftBase;
+      debugPrint(
+          '[BudgetEngine] Category: $category, hasSpendingToday: $hasSpendingToday, daysLeft: ${daysLeftPerCategory[category]}');
     }
+
+    // For backward compatibility, use the first daily category's daysLeft or base
+    final daysLeft = daysLeftPerCategory.values.isNotEmpty
+        ? daysLeftPerCategory.values.first
+        : daysLeftBase;
+    debugPrint(
+        '[BudgetEngine] daysLeftBase: $daysLeftBase, global daysLeft: $daysLeft');
 
     double totalActualIncome = 0;
     for (final inc in actualIncomes) {
@@ -255,9 +282,11 @@ class BudgetEngine {
       switch (exp.frequency) {
         case 'daily':
           // Daily: total for period, spent for elapsed days, remaining for future days
+          final categoryDaysLeft =
+              daysLeftPerCategory[exp.name.toLowerCase()] ?? daysLeftBase;
           total = exp.amount * daysInPeriod;
           upToToday = exp.amount * daysElapsed;
-          remaining = exp.amount * daysLeft;
+          remaining = exp.amount * categoryDaysLeft;
           break;
         case 'monthly':
           // Monthly: full amount, none spent yet, full amount still needed
@@ -326,12 +355,13 @@ class BudgetEngine {
       actualIncomes: actualIncomes,
       expectedExpenses: expectedExpenses,
       actualExpenses: actualExpenses,
-      startDate: startDate,
+      startDate: periodStart,
       endDate: now,
       today: currentDate,
       daysInPeriod: daysInPeriod,
       daysElapsed: daysElapsed,
       daysLeft: daysLeft,
+      daysLeftPerCategory: daysLeftPerCategory,
       totalExpectedIncome: totalExpectedIncome,
       totalActualIncome: totalActualIncome,
       plannedTotalPerCategory: plannedTotal,

@@ -150,6 +150,27 @@ class TransactionRepository {
     );
   }
 
+  // Delete a single transaction by ID
+  Future<void> deleteTransaction(int id) async {
+    final db = await _dbHelper.database;
+    await db.delete(
+      DatabaseConstants.transactionsTable,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // Update a transaction
+  Future<void> updateTransaction(TransactionModel transaction) async {
+    final db = await _dbHelper.database;
+    await db.update(
+      DatabaseConstants.transactionsTable,
+      transaction.toMap(),
+      where: 'id = ?',
+      whereArgs: [transaction.id],
+    );
+  }
+
 // Archive all transactions for the given month and delete them from active
   Future<void> archiveMonth(String month) async {
     final db = await _dbHelper.database;

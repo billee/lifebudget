@@ -96,6 +96,7 @@ final budgetStateProvider = FutureProvider<BudgetState>((ref) async {
     expectedIncomes: expectedIncomes,
     expectedExpenses: expectedExpensesList,
     actualExpenses: actualExpensesList,
+    startDate: startOfMonth,
     endDate: endOfMonth,
     today: now,
   );

@@ -163,6 +163,24 @@ class BudgetScreen extends ConsumerWidget {
                                       color: AppColors.textSecondary,
                                       fontSize: 13),
                                 ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined,
+                                      size: 18, color: AppColors.primary),
+                                  onPressed: () =>
+                                      _showEditDialog(context, ref, t),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                                const SizedBox(width: 4),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      size: 18, color: AppColors.critical),
+                                  onPressed: () =>
+                                      _showDeleteDialog(context, ref, t),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
                               ],
                             ),
                           );
@@ -172,6 +190,131 @@ class BudgetScreen extends ConsumerWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  void _showDeleteDialog(
+      BuildContext context, WidgetRef ref, TransactionModel t) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Transaction'),
+        content: Text(
+            'Are you sure you want to delete this ${t.type}? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final repo = ref.read(transactionRepositoryProvider);
+              await repo.deleteTransaction(t.id!);
+              ref.invalidate(allTransactionsProvider);
+              if (context.mounted) {
+                Navigator.of(ctx).pop();
+              }
+            },
+            child: const Text('Delete',
+                style: TextStyle(color: AppColors.critical)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditDialog(
+      BuildContext context, WidgetRef ref, TransactionModel t) {
+    final amountController = TextEditingController(text: t.amount.toString());
+    final noteController = TextEditingController(text: t.note ?? '');
+    final isIncome = t.type == 'income';
+    DateTime selectedDate = t.date;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: Text('Edit ${isIncome ? "Income" : "Expense"}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Amount',
+                    prefixText: '₱ ',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: noteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Note (optional)',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.calendar_today),
+                  title: Text(
+                      '${selectedDate.month}/${selectedDate.day}/${selectedDate.year}'),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate: selectedDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                    );
+                    if (picked != null) {
+                      setState(() => selectedDate = picked);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final amount = double.tryParse(amountController.text);
+                if (amount == null || amount <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Please enter a valid amount')),
+                  );
+                  return;
+                }
+
+                final updated = TransactionModel(
+                  id: t.id,
+                  type: t.type,
+                  jar: t.jar,
+                  amount: amount,
+                  date: selectedDate,
+                  note:
+                      noteController.text.isEmpty ? null : noteController.text,
+                  source: t.source,
+                );
+
+                final repo = ref.read(transactionRepositoryProvider);
+                await repo.updateTransaction(updated);
+                ref.invalidate(allTransactionsProvider);
+                if (context.mounted) {
+                  Navigator.of(ctx).pop();
+                }
+              },
+              child: const Text('Save',
+                  style: TextStyle(color: AppColors.primary)),
+            ),
+          ],
+        ),
       ),
     );
   }

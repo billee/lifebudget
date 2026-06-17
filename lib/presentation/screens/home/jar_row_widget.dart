@@ -8,6 +8,7 @@ class JarRowWidget extends StatelessWidget {
   final Map<String, double> jarSpent;
   final Map<String, double> plannedTotalPerCategory;
   final int daysLeft;
+  final Map<String, int> daysLeftPerCategory;
   final int daysInPeriod;
 
   const JarRowWidget({
@@ -16,6 +17,7 @@ class JarRowWidget extends StatelessWidget {
     required this.jarSpent,
     this.plannedTotalPerCategory = const {},
     this.daysLeft = 0,
+    this.daysLeftPerCategory = const {},
     this.daysInPeriod = 30,
   });
 
@@ -57,8 +59,9 @@ class JarRowWidget extends StatelessWidget {
     // Build budget label based on frequency (include total)
     String budgetLabel;
     if (isDaily) {
+      final categoryDaysLeft = daysLeftPerCategory[exp.name] ?? daysLeft;
       budgetLabel =
-          '${formatAmount(exp.amount)}/day × $daysLeft days = ${formatAmount(exp.amount * daysLeft)}';
+          '${formatAmount(exp.amount)}/day × $categoryDaysLeft days = ${formatAmount(exp.amount * categoryDaysLeft)}';
     } else if (isMonthly) {
       if (isMonthlyPaid) {
         budgetLabel = 'Paid in full';

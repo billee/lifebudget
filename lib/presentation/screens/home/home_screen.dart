@@ -267,6 +267,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             plannedTotalPerCategory:
                                 budget.plannedTotalPerCategory,
                             daysLeft: budget.daysLeft,
+                            daysLeftPerCategory: budget.daysLeftPerCategory,
                             daysInPeriod: budget.daysInPeriod,
                           ),
                           const SizedBox(height: 24),
