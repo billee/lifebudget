@@ -196,6 +196,19 @@ class BudgetScreen extends ConsumerWidget {
 
   void _showDeleteDialog(
       BuildContext context, WidgetRef ref, TransactionModel t) {
+    // Check if this is a transfer transaction
+    final isTransfer = t.note != null &&
+        (t.note!.contains('Transfer to') || t.note!.contains('Transfer from'));
+
+    if (isTransfer) {
+      _showTransferDeleteDialog(context, ref, t);
+    } else {
+      _showRegularDeleteDialog(context, ref, t);
+    }
+  }
+
+  void _showRegularDeleteDialog(
+      BuildContext context, WidgetRef ref, TransactionModel t) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -222,6 +235,155 @@ class BudgetScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  void _showTransferDeleteDialog(
+      BuildContext context, WidgetRef ref, TransactionModel t) {
+    // Find the paired transfer transaction
+    final transactionsAsync = ref.read(allTransactionsProvider);
+    TransactionModel? pairedTransaction;
+
+    transactionsAsync.whenData((transactions) {
+      pairedTransaction = _findPairedTransfer(t, transactions);
+    });
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel Transfer'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'This transaction is part of a transfer.',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'To keep your budgets accurate, both transactions should be deleted together.',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            if (pairedTransaction != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Paired transaction:',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${pairedTransaction!.jar}: ${pairedTransaction!.amount > 0 ? "+" : ""}${pairedTransaction!.amount.toStringAsFixed(0)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    if (pairedTransaction!.note != null)
+                      Text(
+                        pairedTransaction!.note!,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final repo = ref.read(transactionRepositoryProvider);
+              // Delete both transactions
+              await repo.deleteTransaction(t.id!);
+              if (pairedTransaction != null) {
+                await repo.deleteTransaction(pairedTransaction!.id!);
+              }
+              ref.invalidate(allTransactionsProvider);
+              if (context.mounted) {
+                Navigator.of(ctx).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Transfer cancelled successfully'),
+                    backgroundColor: AppColors.primary,
+                  ),
+                );
+              }
+            },
+            child: const Text('Delete Both',
+                style: TextStyle(color: AppColors.critical)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  TransactionModel? _findPairedTransfer(
+      TransactionModel t, List<TransactionModel> transactions) {
+    // Determine if this is "Transfer to" or "Transfer from"
+    final isTransferTo = t.note?.contains('Transfer to') ?? false;
+    final isTransferFrom = t.note?.contains('Transfer from') ?? false;
+
+    if (!isTransferTo && !isTransferFrom) return null;
+
+    // Extract the category name from the note
+    // "Transfer to Food" -> "Food"
+    // "Transfer from Commute" -> "Commute"
+    final noteParts = t.note!.split(' ');
+    final targetCategory = noteParts.length > 2 ? noteParts[2] : null;
+
+    if (targetCategory == null) return null;
+
+    // Look for the paired transaction:
+    // - Same date
+    // - Opposite amount sign
+    // - Complementary note
+    for (final other in transactions) {
+      if (other.id == t.id) continue; // Skip self
+
+      // Check same date
+      if (other.date.year != t.date.year ||
+          other.date.month != t.date.month ||
+          other.date.day != t.date.day) {
+        continue;
+      }
+
+      // Check opposite amount
+      if ((t.amount + other.amount).abs() > 0.01) {
+        continue; // Amounts should cancel out
+      }
+
+      // Check complementary note
+      if (other.note == null) continue;
+
+      if (isTransferTo &&
+          other.note!.contains('Transfer from $targetCategory')) {
+        return other;
+      }
+      if (isTransferFrom &&
+          other.note!.contains('Transfer to $targetCategory')) {
+        return other;
+      }
+    }
+
+    return null;
   }
 
   void _showEditDialog(

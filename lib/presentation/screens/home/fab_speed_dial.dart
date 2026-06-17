@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../screens/transactions/log_expense_screen.dart';
 import '../../screens/transactions/log_income_screen.dart';
+import '../../screens/transactions/transfer_dialog.dart';
+import '../../providers/budget_provider.dart';
 
-class FabSpeedDial extends StatefulWidget {
+class FabSpeedDial extends ConsumerStatefulWidget {
   /// Whether the FAB is positioned on the left half of the screen.
   /// Sub-FABs will appear to the right when true, left when false.
   final bool isOnLeftSide;
@@ -18,10 +21,10 @@ class FabSpeedDial extends StatefulWidget {
   });
 
   @override
-  State<FabSpeedDial> createState() => FabSpeedDialState();
+  ConsumerState<FabSpeedDial> createState() => FabSpeedDialState();
 }
 
-class FabSpeedDialState extends State<FabSpeedDial>
+class FabSpeedDialState extends ConsumerState<FabSpeedDial>
     with SingleTickerProviderStateMixin {
   bool _expanded = false;
   late AnimationController _controller;
@@ -96,6 +99,32 @@ class FabSpeedDialState extends State<FabSpeedDial>
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const LogIncomeScreen()),
               );
+            },
+          ),
+          const SizedBox(height: 6),
+          _MiniFAB(
+            icon: Icons.swap_horiz_rounded,
+            label: 'Transfer',
+            onTap: () {
+              _toggle();
+              final budgetAsync = ref.read(budgetStateProvider);
+              final categories = budgetAsync.when(
+                data: (budget) =>
+                    budget.expectedExpenses.map((e) => e.name).toList(),
+                loading: () => <String>[],
+                error: (_, __) => <String>[],
+              );
+              if (categories.isNotEmpty) {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => TransferDialog(categories: categories),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('No categories available for transfer')),
+                );
+              }
             },
           ),
           const SizedBox(height: 10),

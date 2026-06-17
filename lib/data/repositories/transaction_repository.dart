@@ -171,6 +171,35 @@ class TransactionRepository {
     );
   }
 
+  // Transfer money between categories (creates two linked transactions)
+  Future<void> transferBetweenCategories({
+    required String fromCategory,
+    required String toCategory,
+    required double amount,
+    required DateTime date,
+    String? note,
+  }) async {
+    final db = await _dbHelper.database;
+
+    // Create expense from source category
+    await db.insert(DatabaseConstants.transactionsTable, {
+      'type': 'expense',
+      'jar': fromCategory,
+      'amount': amount,
+      'date': date.toIso8601String(),
+      'note': note ?? 'Transfer to $toCategory',
+    });
+
+    // Create income to destination category
+    await db.insert(DatabaseConstants.transactionsTable, {
+      'type': 'expense',
+      'jar': toCategory,
+      'amount': -amount, // Negative amount = credit
+      'date': date.toIso8601String(),
+      'note': note ?? 'Transfer from $fromCategory',
+    });
+  }
+
 // Archive all transactions for the given month and delete them from active
   Future<void> archiveMonth(String month) async {
     final db = await _dbHelper.database;

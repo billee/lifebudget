@@ -19,6 +19,8 @@ class AppMenuButton extends StatelessWidget {
       onSelected: (value) {
         if (value == 'settings') {
           context.go('/profile/settings');
+        } else if (value == 'bills') {
+          context.go('/bills');
         } else {
           context.go('/profile/info/$value');
         }
@@ -30,6 +32,14 @@ class AppMenuButton extends StatelessWidget {
             Icon(Icons.settings, size: 20, color: AppColors.primary),
             SizedBox(width: 12),
             Text('Settings'),
+          ]),
+        ),
+        const PopupMenuItem(
+          value: 'bills',
+          child: Row(children: [
+            Icon(Icons.receipt_long, size: 20, color: AppColors.primary),
+            SizedBox(width: 12),
+            Text('Bills'),
           ]),
         ),
         const PopupMenuDivider(),

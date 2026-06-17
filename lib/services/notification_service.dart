@@ -121,4 +121,77 @@ class NotificationService {
 
     debugPrint('[NotificationService] Test notification shown!');
   }
+
+  /// Schedule a bill reminder notification
+  Future<void> scheduleBillReminder({
+    required int billId,
+    required String title,
+    required double amount,
+    required DateTime dueDate,
+    int daysBefore = 3, // Default: 3 days before due date
+  }) async {
+    // Cancel any existing reminder for this bill
+    await cancelBillReminder(billId);
+
+    final reminderDate = dueDate.subtract(Duration(days: daysBefore));
+
+    // Don't schedule if the reminder date has already passed
+    if (reminderDate.isBefore(DateTime.now())) {
+      debugPrint(
+          '[NotificationService] Bill reminder date already passed for: $title');
+      return;
+    }
+
+    debugPrint(
+        '[NotificationService] Scheduling bill reminder for $title on $reminderDate');
+
+    final androidDetails = AndroidNotificationDetails(
+      'bill_reminders',
+      'Bill Reminders',
+      channelDescription: 'Reminders for upcoming bills',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    final details = NotificationDetails(
+      android: androidDetails,
+      iOS: const DarwinNotificationDetails(),
+    );
+
+    final tz.TZDateTime tzReminder = tz.TZDateTime.from(reminderDate, tz.local);
+
+    await _plugin.zonedSchedule(
+      billId + 1000, // Offset to avoid conflicts with other notifications
+      'Bill Due: $title',
+      '₱${amount.toStringAsFixed(0)} due in $daysBefore days!',
+      tzReminder,
+      details,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+
+    debugPrint('[NotificationService] Bill reminder scheduled for: $title');
+  }
+
+  /// Cancel a specific bill reminder
+  Future<void> cancelBillReminder(int billId) async {
+    await _plugin.cancel(billId + 1000);
+  }
+
+  /// Cancel all bill reminders
+  Future<void> cancelAllBillReminders() async {
+    // Get all pending notifications and cancel bill reminders
+    // Note: This is a simplified version. In production, you might want to track
+    // bill IDs separately or use a more sophisticated cancellation strategy.
+    final pendingNotifications = await _plugin.pendingNotificationRequests();
+    for (final notification in pendingNotifications) {
+      if (notification.id >= 1000) {
+        // Bill reminders use IDs >= 1000
+        await _plugin.cancel(notification.id);
+      }
+    }
+  }
 }

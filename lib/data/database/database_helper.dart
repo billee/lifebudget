@@ -19,7 +19,7 @@ class DatabaseHelper {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 6, // <--- version bumped to 6 for 'source' column
+      version: 7, // <--- version bumped to 7 for bills table
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -107,6 +107,20 @@ class DatabaseHelper {
         createdDate TEXT NOT NULL
       )
     ''');
+
+    // bills table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.billsTable} (
+        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        amount REAL NOT NULL,
+        dueDate TEXT NOT NULL,
+        category TEXT NOT NULL,
+        isRecurring INTEGER NOT NULL DEFAULT 0,
+        isPaid INTEGER NOT NULL DEFAULT 0,
+        paidDate TEXT
+      )
+    ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -146,6 +160,22 @@ class DatabaseHelper {
       } catch (e) {
         // Column may already exist – ignore error
       }
+    }
+
+    // Migration for version 7: bills table
+    if (oldVersion < 7) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS ${DatabaseConstants.billsTable} (
+          ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          amount REAL NOT NULL,
+          dueDate TEXT NOT NULL,
+          category TEXT NOT NULL,
+          isRecurring INTEGER NOT NULL DEFAULT 0,
+          isPaid INTEGER NOT NULL DEFAULT 0,
+          paidDate TEXT
+        )
+      ''');
     }
   }
 }

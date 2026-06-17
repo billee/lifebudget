@@ -9,6 +9,7 @@ import '../widgets/common/info_screen.dart';
 import '../screens/transactions/log_expense_screen.dart';
 import '../screens/transactions/log_income_screen.dart';
 import '../screens/jars/jar_detail_screen.dart';
+import '../screens/bills/bills_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -38,6 +39,10 @@ final appRouter = GoRouter(
                     final jarName = state.pathParameters['jarName']!;
                     return JarDetailScreen(jarName: jarName);
                   },
+                ),
+                GoRoute(
+                  path: 'bills',
+                  builder: (context, state) => const BillsScreen(),
                 ),
               ],
             ),
