@@ -8,6 +8,7 @@ class DatabaseConstants {
   static const String journalTable = 'journal_entries';
   static const String goalsTable = 'goals';
   static const String billsTable = 'bills';
+  static const String debtsTable = 'debts';
   static const String colDailyAmount = 'daily_amount';
 
   // Common columns

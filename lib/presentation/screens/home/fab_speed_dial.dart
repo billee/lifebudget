@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../screens/transactions/log_expense_screen.dart';
 import '../../screens/transactions/log_income_screen.dart';
@@ -125,6 +126,15 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
                       content: Text('No categories available for transfer')),
                 );
               }
+            },
+          ),
+          const SizedBox(height: 6),
+          _MiniFAB(
+            icon: Icons.receipt_long_rounded,
+            label: 'Pay Bill',
+            onTap: () {
+              _toggle();
+              context.go('/bills');
             },
           ),
           const SizedBox(height: 10),

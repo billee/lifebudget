@@ -19,7 +19,7 @@ class DatabaseHelper {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 7, // <--- version bumped to 7 for bills table
+      version: 8, // <--- version bumped to 8 for debts table
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -121,6 +121,20 @@ class DatabaseHelper {
         paidDate TEXT
       )
     ''');
+
+    // debts table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.debtsTable} (
+        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        totalAmount REAL NOT NULL,
+        currentBalance REAL NOT NULL,
+        interestRate REAL NOT NULL DEFAULT 0,
+        minimumPayment REAL NOT NULL,
+        dueDate TEXT NOT NULL,
+        notes TEXT
+      )
+    ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -174,6 +188,22 @@ class DatabaseHelper {
           isRecurring INTEGER NOT NULL DEFAULT 0,
           isPaid INTEGER NOT NULL DEFAULT 0,
           paidDate TEXT
+        )
+      ''');
+    }
+
+    // Migration for version 8: debts table
+    if (oldVersion < 8) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS ${DatabaseConstants.debtsTable} (
+          ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          totalAmount REAL NOT NULL,
+          currentBalance REAL NOT NULL,
+          interestRate REAL NOT NULL DEFAULT 0,
+          minimumPayment REAL NOT NULL,
+          dueDate TEXT NOT NULL,
+          notes TEXT
         )
       ''');
     }

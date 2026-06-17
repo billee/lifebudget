@@ -10,6 +10,10 @@ import '../screens/transactions/log_expense_screen.dart';
 import '../screens/transactions/log_income_screen.dart';
 import '../screens/jars/jar_detail_screen.dart';
 import '../screens/bills/bills_screen.dart';
+import '../screens/debt/debt_screen.dart';
+import '../screens/summary/monthly_summary_screen.dart';
+import '../screens/emergency/emergency_fund_screen.dart';
+import '../screens/trends/spending_trends_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -43,6 +47,22 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'bills',
                   builder: (context, state) => const BillsScreen(),
+                ),
+                GoRoute(
+                  path: 'debts',
+                  builder: (context, state) => const DebtScreen(),
+                ),
+                GoRoute(
+                  path: 'summary',
+                  builder: (context, state) => const MonthlySummaryScreen(),
+                ),
+                GoRoute(
+                  path: 'emergency-fund',
+                  builder: (context, state) => const EmergencyFundScreen(),
+                ),
+                GoRoute(
+                  path: 'trends',
+                  builder: (context, state) => const SpendingTrendsScreen(),
                 ),
               ],
             ),

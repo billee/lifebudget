@@ -8,11 +8,38 @@ import '../../../core/utils/number_formatter.dart';
 import '../../widgets/common/app_menu_button.dart';
 import '../../../services/month_transition_service.dart';
 
-class BudgetScreen extends ConsumerWidget {
+class BudgetScreen extends ConsumerStatefulWidget {
   const BudgetScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BudgetScreen> createState() => _BudgetScreenState();
+}
+
+class _BudgetScreenState extends ConsumerState<BudgetScreen> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+  String? _filterCategory;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<String> _getUniqueCategories(List<TransactionModel> transactions) {
+    final categories = <String>{};
+    for (final t in transactions) {
+      if (t.type == 'income') {
+        categories.add('Income');
+      } else {
+        categories.add(t.jar);
+      }
+    }
+    return categories.toList()..sort();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final transactionsAsync = ref.watch(allTransactionsProvider);
     final summariesAsync = ref.watch(jarSummariesProvider);
 
@@ -54,6 +81,18 @@ class BudgetScreen extends ConsumerWidget {
             }
           }
 
+          // Filter transactions based on search and category
+          final filteredTransactions = transactions.where((t) {
+            final matchesSearch = _searchQuery.isEmpty ||
+                t.jar.toLowerCase().contains(_searchQuery) ||
+                (t.note?.toLowerCase().contains(_searchQuery) ?? false) ||
+                (t.source?.toLowerCase().contains(_searchQuery) ?? false);
+            final matchesCategory = _filterCategory == null ||
+                (_filterCategory == 'Income' && t.type == 'income') ||
+                (_filterCategory != 'Income' && t.jar == _filterCategory);
+            return matchesSearch && matchesCategory;
+          }).toList();
+
           return Column(
             children: [
               // Summary cards – side by side
@@ -84,9 +123,83 @@ class BudgetScreen extends ConsumerWidget {
 
               const Divider(height: 1),
 
+              // Search bar
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBackground,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search transactions...',
+                    prefixIcon: const Icon(Icons.search,
+                        color: AppColors.textSecondary),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear,
+                                color: AppColors.textSecondary),
+                            onPressed: () {
+                              setState(() {
+                                _searchController.clear();
+                                _searchQuery = '';
+                              });
+                            },
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value.toLowerCase();
+                    });
+                  },
+                ),
+              ),
+
+              // Filter chips
+              if (transactions.isNotEmpty)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      FilterChip(
+                        label: const Text('All'),
+                        selected: _filterCategory == null,
+                        onSelected: (selected) {
+                          setState(() {
+                            _filterCategory = null;
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      ..._getUniqueCategories(transactions)
+                          .map((category) => Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: FilterChip(
+                                  label: Text(category),
+                                  selected: _filterCategory == category,
+                                  onSelected: (selected) {
+                                    setState(() {
+                                      _filterCategory =
+                                          selected ? category : null;
+                                    });
+                                  },
+                                ),
+                              )),
+                    ],
+                  ),
+                ),
+
+              const Divider(height: 1),
+
               // Transaction list
               Expanded(
-                child: transactions.isEmpty
+                child: filteredTransactions.isEmpty
                     ? const Center(
                         child: Text(
                           'No transactions yet.\nTap + to add one!',
@@ -96,9 +209,9 @@ class BudgetScreen extends ConsumerWidget {
                         ),
                       )
                     : ListView.builder(
-                        itemCount: transactions.length,
+                        itemCount: filteredTransactions.length,
                         itemBuilder: (context, index) {
-                          final t = transactions[index];
+                          final t = filteredTransactions[index];
                           final isIncome = t.type == 'income';
                           final mainText = isIncome
                               ? (t.source ?? 'Income')

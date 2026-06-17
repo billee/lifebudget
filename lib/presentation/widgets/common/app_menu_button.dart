@@ -21,6 +21,14 @@ class AppMenuButton extends StatelessWidget {
           context.go('/profile/settings');
         } else if (value == 'bills') {
           context.go('/bills');
+        } else if (value == 'debts') {
+          context.go('/debts');
+        } else if (value == 'summary') {
+          context.go('/summary');
+        } else if (value == 'emergency-fund') {
+          context.go('/emergency-fund');
+        } else if (value == 'trends') {
+          context.go('/trends');
         } else {
           context.go('/profile/info/$value');
         }
@@ -40,6 +48,39 @@ class AppMenuButton extends StatelessWidget {
             Icon(Icons.receipt_long, size: 20, color: AppColors.primary),
             SizedBox(width: 12),
             Text('Bills'),
+          ]),
+        ),
+        const PopupMenuItem(
+          value: 'debts',
+          child: Row(children: [
+            Icon(Icons.account_balance_wallet,
+                size: 20, color: AppColors.primary),
+            SizedBox(width: 12),
+            Text('Debts'),
+          ]),
+        ),
+        const PopupMenuItem(
+          value: 'summary',
+          child: Row(children: [
+            Icon(Icons.pie_chart, size: 20, color: AppColors.primary),
+            SizedBox(width: 12),
+            Text('Summary'),
+          ]),
+        ),
+        const PopupMenuItem(
+          value: 'emergency-fund',
+          child: Row(children: [
+            Icon(Icons.shield, size: 20, color: AppColors.primary),
+            SizedBox(width: 12),
+            Text('Emergency Fund'),
+          ]),
+        ),
+        const PopupMenuItem(
+          value: 'trends',
+          child: Row(children: [
+            Icon(Icons.trending_up, size: 20, color: AppColors.primary),
+            SizedBox(width: 12),
+            Text('Spending Trends'),
           ]),
         ),
         const PopupMenuDivider(),
