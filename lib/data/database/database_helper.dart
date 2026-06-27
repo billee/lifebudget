@@ -135,6 +135,17 @@ class DatabaseHelper {
         notes TEXT
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.expectedExpensesTable} (
+        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        frequency TEXT NOT NULL,
+        amount REAL NOT NULL,
+        month TEXT NOT NULL,
+        due_date TEXT  -- NEW: optional due date in YYYY-MM-DD
+      )
+    ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -206,6 +217,13 @@ class DatabaseHelper {
           notes TEXT
         )
       ''');
+
+      if (oldVersion < 9) {
+        try {
+          await db.execute(
+              'ALTER TABLE ${DatabaseConstants.expectedExpensesTable} ADD COLUMN due_date TEXT');
+        } catch (e) {/* column already exists */}
+      }
     }
   }
 }

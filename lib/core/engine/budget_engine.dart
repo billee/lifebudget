@@ -22,12 +22,14 @@ class ExpenseCategory {
   final double amount; // per frequency
   final String frequency; // 'daily', 'weekly', 'monthly'
   final String? description;
+  final DateTime? dueDate;
 
   ExpenseCategory({
     required this.name,
     required this.amount,
     required this.frequency,
     this.description,
+    this.dueDate,
   });
 
   Map<String, dynamic> toJson() => {
@@ -35,6 +37,7 @@ class ExpenseCategory {
         'amount': amount,
         'frequency': frequency,
         'description': description,
+        'dueDate': dueDate?.toIso8601String().substring(0, 10),
       };
 }
 

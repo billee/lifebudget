@@ -14,6 +14,7 @@ import '../../../core/utils/emotional_messages.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../services/month_transition_service.dart';
 import '../../widgets/month_transition_dialog.dart';
+// The speed dial is placed elsewhere in the UI (e.g., in the main scaffold)
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -28,38 +29,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Check for new month after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkForNewMonth();
     });
   }
 
+  // ---- Month transition (unchanged) ----
   Future<void> _checkForNewMonth() async {
-    if (_checkedMonthTransition) {
-      debugPrint('[CheckForNewMonth] Already checked, returning');
-      return;
-    }
+    if (_checkedMonthTransition) return;
     _checkedMonthTransition = true;
-
-    debugPrint(
-        '[CheckForNewMonth] Starting check, debugOverrideDate: ${MonthTransitionService.debugOverrideDate}');
 
     try {
       final service = MonthTransitionService();
       final isNewMonth = await service.isNewMonth();
-      debugPrint('[CheckForNewMonth] isNewMonth: $isNewMonth');
-
       if (isNewMonth && mounted) {
         final currentMonth = _getCurrentMonth();
-        debugPrint('[CheckForNewMonth] currentMonth: $currentMonth');
-
         final previousMonth = service.getPreviousMonth(currentMonth);
-        debugPrint('[CheckForNewMonth] previousMonth: $previousMonth');
-
         final surplus =
             await service.calculatePreviousMonthSurplus(previousMonth);
-        debugPrint('[CheckForNewMonth] surplus: $surplus');
-
         if (mounted) {
           final result = await showMonthTransitionDialog(
             context,
@@ -67,39 +54,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             currentMonth,
             surplus,
           );
-
           if (result) {
-            debugPrint(
-                '[CheckForNewMonth] Month transition completed, invalidating providers...');
-            // Invalidate data providers first - budgetStateProvider will cascade
-            // because it watches both allTransactionsProvider and expectedExpensesProvider
             ref.invalidate(allTransactionsProvider);
             ref.invalidate(expectedExpensesProvider);
-            // Don't invalidate budgetStateProvider directly - let the cascade handle it
-            // This ensures fresh data is used when budgetStateProvider recomputes
-            debugPrint('[CheckForNewMonth] Providers invalidated');
-
-            // Schedule a delayed invalidation to pick up Safely Spend
-            // which is written by budgetStateProvider AFTER the initial refetch
             Future.delayed(const Duration(milliseconds: 500), () {
-              if (mounted) {
-                debugPrint(
-                    '[CheckForNewMonth] Delayed invalidation for Safely Spend update');
-                ref.invalidate(expectedExpensesProvider);
-              }
+              if (mounted) ref.invalidate(expectedExpensesProvider);
             });
           }
         }
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       debugPrint('Error checking for new month: $e');
-      debugPrint('Stack trace: $stackTrace');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Month transition error: $e'),
-            backgroundColor: Colors.red,
-          ),
+              content: Text('Month transition error: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -110,43 +80,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return '${now.year}-${now.month.toString().padLeft(2, '0')}';
   }
 
-  // DEBUG: Toggle between simulated July 1 and real date
+  // ---- DEBUG toggle (unchanged) ----
   void _toggleDebugDate() async {
     try {
-      // If debug date is already set, toggle it off and clean up test data
       if (MonthTransitionService.debugOverrideDate != null) {
         final simulatedDate = MonthTransitionService.debugOverrideDate!;
         final simulatedMonth =
             '${simulatedDate.year}-${simulatedDate.month.toString().padLeft(2, '0')}';
-
-        // Clean up test data before resetting
         final service = MonthTransitionService();
         await service.cleanupTestData(simulatedMonth);
-
         MonthTransitionService.debugOverrideDate = null;
         _checkedMonthTransition = false;
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                  'DEBUG: Reset to real date and cleaned up $simulatedMonth data'),
-              duration: const Duration(seconds: 3),
-            ),
+                content: Text(
+                    'DEBUG: Reset to real date and cleaned up $simulatedMonth data')),
           );
-          // Invalidate data providers - budgetStateProvider will cascade
           ref.invalidate(allTransactionsProvider);
           ref.invalidate(expectedExpensesProvider);
         }
         return;
       }
 
-      // Otherwise, set debug date to July 1 of current year
       final currentYear = DateTime.now().year;
       final simulatedDate = DateTime(currentYear, 7, 1);
       MonthTransitionService.debugOverrideDate = simulatedDate;
-
-      // Show debug state in SnackBar
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -164,35 +123,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         );
       }
-
-      debugPrint('[ToggleDebugDate] Set debugOverrideDate to: $simulatedDate');
-
-      _checkedMonthTransition = false; // Reset so it checks again
-
-      // Let _checkForNewMonth handle all invalidations
-      // This ensures the dialog flow works correctly
-
+      _checkedMonthTransition = false;
       await _checkForNewMonth();
     } catch (e) {
       debugPrint('Error in _toggleDebugDate: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Simulate error: $e'),
-            backgroundColor: Colors.red,
-          ),
+              content: Text('Simulate error: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
+  // ---- BUILD ----
   @override
   Widget build(BuildContext context) {
     final budgetAsync = ref.watch(budgetStateProvider);
     final settings = ref.watch(reminderSettingsProvider);
     final survivalMode = settings.survivalMode;
 
-    // Check if debug mode is active
     final isDebugMode = MonthTransitionService.debugOverrideDate != null;
 
     return budgetAsync.when(
@@ -209,84 +159,73 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             (totalIncome - totalSpent).clamp(0.0, double.infinity);
         final daysLeft = budget.daysLeft;
 
-        // Emotional message (simplified – you can use budget to detect overspending)
-        String statusLine = getRandomMessage('on_track');
-        // (Optional: derive from budget.plannedUpToTodayPerCategory vs actualSpentPerCategory)
-
-        return Stack(
+        return Column(
           children: [
-            Column(
-              children: [
-                const HomeHeader(),
-                // DEBUG: Toggle button (remove for production)
-                Container(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: ElevatedButton.icon(
-                    onPressed: _toggleDebugDate,
-                    icon: Icon(
-                      isDebugMode ? Icons.close : Icons.bug_report,
-                      size: 16,
-                    ),
-                    label: Text(
-                      isDebugMode
-                          ? 'DEBUG: Reset to Real Date'
-                          : 'DEBUG: Simulate July 1',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          isDebugMode ? Colors.green : Colors.orange,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
+            const HomeHeader(),
+            // DEBUG button
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: ElevatedButton.icon(
+                onPressed: _toggleDebugDate,
+                icon: Icon(
+                  isDebugMode ? Icons.close : Icons.bug_report,
+                  size: 16,
                 ),
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: () async {
-                      ref.invalidate(budgetStateProvider);
-                    },
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          HealthRingWidget(
-                            leftAmount: remaining,
-                            totalBudget: totalIncome,
-                          ),
-                          const SizedBox(height: 16),
-                          DailyAllowanceCard(
-                            dailyAllowance: dailyAllowance,
-                            daysLeft: daysLeft,
-                          ),
-                          const SizedBox(height: 16),
-                          JarRowWidget(
-                            expectedExpenses: budget.expectedExpenses,
-                            jarSpent: budget.actualSpentPerCategory,
-                            plannedTotalPerCategory:
-                                budget.plannedTotalPerCategory,
-                            daysLeft: budget.daysLeft,
-                            daysLeftPerCategory: budget.daysLeftPerCategory,
-                            daysInPeriod: budget.daysInPeriod,
-                          ),
-                          const SizedBox(height: 24),
-                          const GoalsPreview(),
-                          const SizedBox(height: 24),
-                          if (!survivalMode && budget.remainingSafelySpend > 0)
-                            _SafelySpendSection(
-                              budget: budget.totalSafelySpendBudget,
-                              spent: budget.safelySpendSpent,
-                              daysLeft: daysLeft,
-                              dailyAllowance: dailyAllowance,
-                            ),
-                          const SizedBox(height: 100),
-                        ],
+                label: Text(
+                  isDebugMode
+                      ? 'DEBUG: Reset to Real Date'
+                      : 'DEBUG: Simulate July 1',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDebugMode ? Colors.green : Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  ref.invalidate(budgetStateProvider);
+                },
+                child: SingleChildScrollView(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      HealthRingWidget(
+                        leftAmount: remaining,
+                        totalBudget: totalIncome,
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      DailyAllowanceCard(
+                        dailyAllowance: dailyAllowance,
+                        daysLeft: daysLeft,
+                      ),
+                      const SizedBox(height: 16),
+                      JarRowWidget(
+                        expectedExpenses: budget.expectedExpenses,
+                        jarSpent: budget.actualSpentPerCategory,
+                        plannedTotalPerCategory: budget.plannedTotalPerCategory,
+                        daysLeft: budget.daysLeft,
+                        daysLeftPerCategory: budget.daysLeftPerCategory,
+                        daysInPeriod: budget.daysInPeriod,
+                      ),
+                      const SizedBox(height: 24),
+                      const GoalsPreview(),
+                      const SizedBox(height: 24),
+                      if (!survivalMode && budget.remainingSafelySpend > 0)
+                        _SafelySpendSection(
+                          budget: budget.totalSafelySpendBudget,
+                          spent: budget.safelySpendSpent,
+                          daysLeft: daysLeft,
+                          dailyAllowance: dailyAllowance,
+                        ),
+                      const SizedBox(height: 100),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           ],
         );
@@ -295,6 +234,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
+// ============================================================
+// Safely Spend Section (unchanged)
+// ============================================================
 class _SafelySpendSection extends StatelessWidget {
   final double budget;
   final double spent;

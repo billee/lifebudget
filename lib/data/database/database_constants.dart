@@ -10,6 +10,7 @@ class DatabaseConstants {
   static const String billsTable = 'bills';
   static const String debtsTable = 'debts';
   static const String colDailyAmount = 'daily_amount';
+  static const String colDueDate = 'due_date';
 
   // Common columns
   static const String colId = 'id';

@@ -6,6 +6,12 @@ import '../../screens/transactions/log_expense_screen.dart';
 import '../../screens/transactions/log_income_screen.dart';
 import '../../screens/transactions/transfer_dialog.dart';
 import '../../providers/budget_provider.dart';
+import '../../providers/due_items_provider.dart';
+import '../../providers/transaction_provider.dart';
+import '../../providers/bill_provider.dart';
+import '../../providers/expected_expenses_provider.dart'; // <-- ADDED
+import '../../../data/models/transaction_model.dart';
+import '../../../services/notification_service.dart';
 
 class FabSpeedDial extends ConsumerStatefulWidget {
   /// Whether the FAB is positioned on the left half of the screen.
@@ -69,12 +75,152 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
     }
   }
 
+  // ============================================================
+  // Due Items Dialog and marking logic
+  // ============================================================
+  Future<void> _showDueItemsDialog(BuildContext context) async {
+    final items = await ref.read(dueItemsProvider.future);
+    if (items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No bills or expenses due right now.'),
+          backgroundColor: AppColors.onTrack,
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.3,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Pay Bills & Expenses',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${items.length} item${items.length > 1 ? 's' : ''} due',
+                    style: const TextStyle(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: ListView.separated(
+                      controller: scrollController,
+                      itemCount: items.length,
+                      separatorBuilder: (_, __) => const Divider(),
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        return _DueItemTile(
+                          item: item,
+                          onMarkPaid: () async {
+                            await _markAsPaid(context, ref, item);
+                            // Refresh the list
+                            ref.invalidate(dueItemsProvider);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              // Re-open to show updated list
+                              _showDueItemsDialog(context);
+                            }
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _markAsPaid(
+      BuildContext context, WidgetRef ref, DueItem item) async {
+    try {
+      if (item.type == DueItemType.bill) {
+        final billRepo = ref.read(billRepositoryProvider);
+        await billRepo.markAsPaid(item.id);
+        await NotificationService.instance.cancelBillReminder(item.id);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${item.title} marked as paid'),
+              backgroundColor: AppColors.onTrack,
+            ),
+          );
+        }
+      } else {
+        final transactionRepo = ref.read(transactionRepositoryProvider);
+        final transaction = TransactionModel(
+          type: 'expense',
+          jar: item.title,
+          amount: item.amount,
+          date: DateTime.now(),
+          note: 'Paid: ${item.title}',
+        );
+        await transactionRepo.insertTransaction(transaction);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${item.title} expense paid and recorded'),
+              backgroundColor: AppColors.onTrack,
+            ),
+          );
+        }
+      }
+      ref.invalidate(allTransactionsProvider);
+      ref.invalidate(expectedExpensesProvider);
+      ref.invalidate(budgetStateProvider);
+      ref.invalidate(dueItemsProvider);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error marking as paid: $e'),
+            backgroundColor: AppColors.critical,
+          ),
+        );
+      }
+    }
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
   @override
   Widget build(BuildContext context) {
-    // When FAB is on the left side of screen → sub-FABs go right (start alignment)
-    // When FAB is on the right side of screen → sub-FABs go left (end alignment)
     final alignment =
         widget.isOnLeftSide ? CrossAxisAlignment.start : CrossAxisAlignment.end;
+    final dueCountAsync = ref.watch(urgentDueItemsCountProvider);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -129,12 +275,31 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
             },
           ),
           const SizedBox(height: 6),
-          _MiniFAB(
-            icon: Icons.receipt_long_rounded,
-            label: 'Pay Bill',
-            onTap: () {
-              _toggle();
-              context.go('/bills');
+          // Pay Bill mini-FAB with badge
+          dueCountAsync.when(
+            loading: () => _MiniFAB(
+              icon: Icons.receipt_long_rounded,
+              label: 'Pay Bill',
+              onTap: () {},
+            ),
+            error: (_, __) => _MiniFAB(
+              icon: Icons.receipt_long_rounded,
+              label: 'Pay Bill',
+              onTap: () {},
+            ),
+            data: (count) {
+              return Badge(
+                label: Text('$count'),
+                isLabelVisible: count > 0,
+                child: _MiniFAB(
+                  icon: Icons.receipt_long_rounded,
+                  label: 'Pay Bill',
+                  onTap: () {
+                    _toggle();
+                    _showDueItemsDialog(context);
+                  },
+                ),
+              );
             },
           ),
           const SizedBox(height: 10),
@@ -173,6 +338,60 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
   }
 }
 
+// ============================================================
+// Helper widget for a due item tile
+// ============================================================
+class _DueItemTile extends StatelessWidget {
+  final DueItem item;
+  final VoidCallback onMarkPaid;
+
+  const _DueItemTile({required this.item, required this.onMarkPaid});
+
+  @override
+  Widget build(BuildContext context) {
+    final isOverdue = item.isOverdue;
+    final daysUntil = item.dueDate.difference(DateTime.now()).inDays;
+    String status;
+    Color statusColor;
+    if (isOverdue) {
+      status = 'Overdue';
+      statusColor = AppColors.critical;
+    } else if (daysUntil == 0) {
+      status = 'Due today';
+      statusColor = AppColors.warning;
+    } else if (daysUntil == 1) {
+      status = 'Due tomorrow';
+      statusColor = AppColors.primary;
+    } else {
+      status = 'Due in $daysUntil days';
+      statusColor = AppColors.textSecondary;
+    }
+
+    return ListTile(
+      leading: Icon(
+        item.type == DueItemType.bill ? Icons.receipt : Icons.category,
+        color: isOverdue ? AppColors.critical : AppColors.primary,
+      ),
+      title: Text(item.title),
+      subtitle: Text(
+        '₱${item.amount.toStringAsFixed(0)} • $status',
+        style: TextStyle(color: statusColor),
+      ),
+      trailing: ElevatedButton(
+        onPressed: onMarkPaid,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.onTrack,
+          foregroundColor: Colors.white,
+        ),
+        child: const Text('Pay'),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// Mini FAB widget
+// ============================================================
 class _MiniFAB extends StatelessWidget {
   final IconData icon;
   final String label;
