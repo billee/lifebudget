@@ -193,6 +193,9 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
           );
         }
       } else {
+        final expenseRepo = ref.read(expectedExpenseRepositoryProvider);
+        await expenseRepo.markAsPaid(item.id);
+
         final transactionRepo = ref.read(transactionRepositoryProvider);
         final transaction = TransactionModel(
           type: 'expense',

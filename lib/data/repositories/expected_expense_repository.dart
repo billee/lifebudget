@@ -136,4 +136,14 @@ class ExpectedExpenseRepository {
       whereArgs: [month],
     );
   }
+
+  Future<void> markAsPaid(int id) async {
+    final db = await database;
+    await db.update(
+      _table,
+      {'is_paid': 1},
+      where: '$_colId = ?',
+      whereArgs: [id],
+    );
+  }
 }

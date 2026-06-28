@@ -27,7 +27,6 @@ class DueItem {
 }
 
 final dueItemsProvider = FutureProvider<List<DueItem>>((ref) async {
-  // Correct way: use .future on the provider reference
   final bills = await ref.watch(allBillsProvider.future);
   final expenses = await ref.watch(expectedExpensesProvider.future);
 
@@ -50,8 +49,10 @@ final dueItemsProvider = FutureProvider<List<DueItem>>((ref) async {
   }
 
   for (final expense in expenses) {
-    if (expense.dueDate != null) {
+    // Only include if: it has a due date, is NOT paid, and is due today or in the future (or overdue)
+    if (expense.dueDate != null && !expense.isPaid) {
       final dueDate = expense.dueDate!;
+      // You can optionally filter to only show due today or future, but we'll show all unpaid with due dates
       items.add(DueItem(
         id: expense.id!,
         title: expense.title,

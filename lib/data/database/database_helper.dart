@@ -5,7 +5,7 @@ class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
 
-  // Table names (local constants)
+  // Table names
   static const String transactionsTable = 'transactions';
   static const String jarAllocationsTable = 'jar_allocations';
   static const String expectedExpensesTable = 'expected_expenses';
@@ -16,7 +16,7 @@ class DatabaseHelper {
   static const String billsTable = 'bills';
   static const String debtsTable = 'debts';
 
-  // Common column names
+  // Column names
   static const String colId = 'id';
   static const String colMonth = 'month';
   static const String colJarName = 'jar_name';
@@ -26,7 +26,8 @@ class DatabaseHelper {
   static const String colAmount = 'amount';
   static const String colDate = 'date';
   static const String colNote = 'note';
-  static const String colDueDate = 'due_date'; // NEW
+  static const String colDueDate = 'due_date';
+  static const String colIsPaid = 'is_paid'; // NEW
 
   DatabaseHelper._init();
 
@@ -41,7 +42,7 @@ class DatabaseHelper {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 9, // <--- version bumped to 9 for due_date
+      version: 10, // <--- bumped to 10 for is_paid
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -71,7 +72,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // expected expenses table – now with due_date
+    // expected expenses table – with due_date and is_paid
     await db.execute('''
       CREATE TABLE IF NOT EXISTS $expectedExpensesTable (
         $colId INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,7 +80,8 @@ class DatabaseHelper {
         frequency TEXT NOT NULL,
         $colAmount REAL NOT NULL,
         $colMonth TEXT NOT NULL,
-        $colDueDate TEXT
+        $colDueDate TEXT,
+        $colIsPaid INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
@@ -234,9 +236,15 @@ class DatabaseHelper {
       try {
         await db.execute(
             'ALTER TABLE $expectedExpensesTable ADD COLUMN $colDueDate TEXT');
-      } catch (e) {
-        // column may already exist
-      }
+      } catch (e) {/* column may already exist */}
+    }
+
+    // Version 10: add is_paid to expected_expenses
+    if (oldVersion < 10) {
+      try {
+        await db.execute(
+            'ALTER TABLE $expectedExpensesTable ADD COLUMN $colIsPaid INTEGER NOT NULL DEFAULT 0');
+      } catch (e) {/* column may already exist */}
     }
   }
 }
