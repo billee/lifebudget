@@ -25,12 +25,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String _frequency = 'monthly';
   final _amountController = TextEditingController();
   int? _editingId;
-  DateTime? _dueDate; // NEW: optional due date
+  DateTime? _dueDate;
+
+  // NEW: Scroll controller and key for the form
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _formKey = GlobalKey();
 
   @override
   void dispose() {
     _titleController.dispose();
     _amountController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -40,11 +45,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     setState(() {
       _frequency = 'monthly';
       _editingId = null;
-      _dueDate = null; // NEW
+      _dueDate = null;
     });
   }
 
-  // NEW: show date picker
   Future<void> _selectDueDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -59,7 +63,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  // NEW: clear due date
   void _clearDueDate() {
     setState(() {
       _dueDate = null;
@@ -88,7 +91,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         frequency: _frequency,
         amount: amount,
         month: month,
-        dueDate: _dueDate, // NEW
+        dueDate: _dueDate,
       );
       await repo.insert(expense);
     } else {
@@ -98,12 +101,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         frequency: _frequency,
         amount: amount,
         month: month,
-        dueDate: _dueDate, // NEW
+        dueDate: _dueDate,
       );
       await repo.update(expense);
     }
 
-    // Sync to matching Goal if one exists (manual search to avoid nullable issues)
+    // Sync to matching Goal if one exists
     final goalRepo = ref.read(goalRepositoryProvider);
     final goals = await goalRepo.getAll();
     Goal? matchingGoal;
@@ -114,20 +117,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     }
     if (matchingGoal != null) {
-      // No further action – goal's monthly budget is already represented by ExpectedExpense
+      // No further action
     }
 
     ref.invalidate(expectedExpensesProvider);
     _clearForm();
   }
 
+  // NEW: Edit method now scrolls to the form top
   void _edit(ExpectedExpense expense) {
     setState(() {
       _editingId = expense.id;
       _titleController.text = expense.title;
       _frequency = expense.frequency;
       _amountController.text = expense.amount.toStringAsFixed(0);
-      _dueDate = expense.dueDate; // NEW
+      _dueDate = expense.dueDate;
+    });
+    // Scroll to the top of the form after a short delay
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = _formKey.currentContext;
+      if (context != null) {
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
     });
   }
 
@@ -171,7 +186,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         frequency: expense.frequency,
         amount: 0,
         month: expense.month,
-        dueDate: expense.dueDate, // keep dueDate (optional)
+        dueDate: expense.dueDate,
       );
       await repo.update(updated);
 
@@ -227,114 +242,126 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         actions: const [AppMenuButton()],
       ),
       body: SingleChildScrollView(
+        controller: _scrollController, // <-- attach controller
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              _editingId == null
-                  ? 'Add Expected Expense'
-                  : 'Edit Expected Expense',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                labelText: 'Title',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: _frequency,
-              items: ['daily', 'monthly']
-                  .map((f) => DropdownMenuItem(
-                        value: f,
-                        child: Text(f[0].toUpperCase() + f.substring(1)),
-                      ))
-                  .toList(),
-              onChanged: (val) {
-                if (val != null) setState(() => _frequency = val);
-              },
-              decoration: InputDecoration(
-                labelText: 'Frequency',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _amountController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: 'Amount',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-            ),
-            // ======= NEW: DUE DATE SECTION =======
-            const SizedBox(height: 12),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading:
-                  const Icon(Icons.calendar_today, color: AppColors.primary),
-              title: Text(
-                _dueDate == null
-                    ? 'No due date (optional)'
-                    : 'Due: ${_dueDate!.toLocal().toString().split(' ')[0]}',
-                style: TextStyle(
-                  color: _dueDate == null ? AppColors.textSecondary : null,
-                ),
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
+            // Form section with a key
+            Container(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (_dueDate != null)
-                    IconButton(
-                      icon: const Icon(Icons.clear, color: AppColors.critical),
-                      onPressed: _clearDueDate,
+                  Text(
+                    _editingId == null
+                        ? 'Add Expected Expense'
+                        : 'Edit Expected Expense',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _titleController,
+                    decoration: InputDecoration(
+                      labelText: 'Title',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      filled: true,
+                      fillColor: Colors.white,
                     ),
-                  IconButton(
-                    icon: const Icon(Icons.edit_calendar,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: _frequency,
+                    items: ['daily', 'monthly']
+                        .map((f) => DropdownMenuItem(
+                              value: f,
+                              child: Text(f[0].toUpperCase() + f.substring(1)),
+                            ))
+                        .toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _frequency = val);
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Frequency',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _amountController,
+                    keyboardType:
+                        TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Amount',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.calendar_today,
                         color: AppColors.primary),
-                    onPressed: () => _selectDueDate(context),
+                    title: Text(
+                      _dueDate == null
+                          ? 'No due date (optional)'
+                          : 'Due: ${_dueDate!.toLocal().toString().split(' ')[0]}',
+                      style: TextStyle(
+                        color:
+                            _dueDate == null ? AppColors.textSecondary : null,
+                      ),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_dueDate != null)
+                          IconButton(
+                            icon: const Icon(Icons.clear,
+                                color: AppColors.critical),
+                            onPressed: _clearDueDate,
+                          ),
+                        IconButton(
+                          icon: const Icon(Icons.edit_calendar,
+                              color: AppColors.primary),
+                          onPressed: () => _selectDueDate(context),
+                        ),
+                      ],
+                    ),
+                    onTap: () => _selectDueDate(context),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _save,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: Text(_editingId == null ? 'Save' : 'Update',
+                              style: const TextStyle(fontSize: 16)),
+                        ),
+                      ),
+                      if (_editingId != null) ...[
+                        const SizedBox(width: 12),
+                        TextButton(
+                            onPressed: _clearForm, child: const Text('Cancel')),
+                      ],
+                    ],
                   ),
                 ],
               ),
-              onTap: () => _selectDueDate(context),
-            ),
-            // =====================================
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _save,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text(_editingId == null ? 'Save' : 'Update',
-                        style: const TextStyle(fontSize: 16)),
-                  ),
-                ),
-                if (_editingId != null) ...[
-                  const SizedBox(width: 12),
-                  TextButton(
-                      onPressed: _clearForm, child: const Text('Cancel')),
-                ],
-              ],
             ),
             const SizedBox(height: 24),
             const Divider(),
@@ -346,7 +373,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => Center(child: Text('Error: $err')),
               data: (expenses) {
-                // Get the calculated Safely Spend from budget state
                 final calculatedSafelySpend =
                     budgetAsync.valueOrNull?.totalSafelySpendBudget ?? 0.0;
 
@@ -367,7 +393,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     final exp = expenses[index];
                     final isSafelySpend =
                         exp.title.toLowerCase() == 'safely spend';
-                    // Use calculated Safely Spend from budget state for display
                     final displayAmount =
                         isSafelySpend ? calculatedSafelySpend : exp.amount;
                     return Card(
@@ -382,7 +407,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             Text(
                               '${exp.frequency[0].toUpperCase()}${exp.frequency.substring(1)} — ${formatAmount(displayAmount)}',
                             ),
-                            if (exp.dueDate != null) // NEW: show due date
+                            if (exp.dueDate != null)
                               Text(
                                 'Due: ${exp.dueDate!.toLocal().toString().split(' ')[0]}',
                                 style: const TextStyle(
