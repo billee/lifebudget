@@ -9,16 +9,12 @@ import '../../providers/budget_provider.dart';
 import '../../providers/due_items_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/bill_provider.dart';
-import '../../providers/expected_expenses_provider.dart'; // <-- ADDED
+import '../../providers/expected_expenses_provider.dart';
 import '../../../data/models/transaction_model.dart';
 import '../../../services/notification_service.dart';
 
 class FabSpeedDial extends ConsumerStatefulWidget {
-  /// Whether the FAB is positioned on the left half of the screen.
-  /// Sub-FABs will appear to the right when true, left when false.
   final bool isOnLeftSide;
-
-  /// Called when expanded/collapsed so parent can show dismiss overlay.
   final ValueChanged<bool>? onExpandedChanged;
 
   const FabSpeedDial({
@@ -64,7 +60,6 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
     });
   }
 
-  /// Allow parent to collapse the FAB (e.g. when tapping outside).
   void collapse() {
     if (_expanded) {
       setState(() {
@@ -76,11 +71,12 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
   }
 
   // ============================================================
-  // Due Items Dialog and marking logic
+  // Due Items Dialog – uses StatefulBuilder for instant updates
   // ============================================================
   Future<void> _showDueItemsDialog(BuildContext context) async {
-    final items = await ref.read(dueItemsProvider.future);
-    if (items.isEmpty) {
+    // Fetch initial items
+    final initialItems = await ref.read(dueItemsProvider.future);
+    if (initialItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('No bills or expenses due right now.'),
@@ -90,6 +86,9 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
       return;
     }
 
+    // Local mutable list
+    List<DueItem> items = List.from(initialItems);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -97,65 +96,80 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.3,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (context, scrollController) {
-            return Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Pay Bills & Expenses',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.6,
+              minChildSize: 0.3,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (context, scrollController) {
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Pay Bills & Expenses',
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${items.length} item${items.length > 1 ? 's' : ''} due',
+                        style: const TextStyle(color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: items.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'All cleared! No items due.',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              )
+                            : ListView.separated(
+                                controller: scrollController,
+                                itemCount: items.length,
+                                separatorBuilder: (_, __) => const Divider(),
+                                itemBuilder: (context, index) {
+                                  final item = items[index];
+                                  return _DueItemTile(
+                                    item: item,
+                                    onMarkPaid: () async {
+                                      // Mark as paid in database
+                                      await _markAsPaid(context, ref, item);
+                                      // Remove from local list and update UI
+                                      setState(() {
+                                        items.removeAt(index);
+                                      });
+                                      // Invalidate providers to sync background data
+                                      ref.invalidate(dueItemsProvider);
+                                    },
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${items.length} item${items.length > 1 ? 's' : ''} due',
-                    style: const TextStyle(color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: ListView.separated(
-                      controller: scrollController,
-                      itemCount: items.length,
-                      separatorBuilder: (_, __) => const Divider(),
-                      itemBuilder: (context, index) {
-                        final item = items[index];
-                        return _DueItemTile(
-                          item: item,
-                          onMarkPaid: () async {
-                            await _markAsPaid(context, ref, item);
-                            // Refresh the list
-                            ref.invalidate(dueItemsProvider);
-                            if (context.mounted) {
-                              Navigator.pop(context);
-                              // Re-open to show updated list
-                              _showDueItemsDialog(context);
-                            }
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             );
           },
         );
@@ -197,6 +211,7 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
           );
         }
       }
+      // Invalidate all relevant providers to keep the rest of the app in sync
       ref.invalidate(allTransactionsProvider);
       ref.invalidate(expectedExpensesProvider);
       ref.invalidate(budgetStateProvider);
@@ -275,7 +290,6 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
             },
           ),
           const SizedBox(height: 6),
-          // Pay Bill mini-FAB with badge
           dueCountAsync.when(
             loading: () => _MiniFAB(
               icon: Icons.receipt_long_rounded,
@@ -339,7 +353,7 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
 }
 
 // ============================================================
-// Helper widget for a due item tile
+// Due Item Tile (unchanged)
 // ============================================================
 class _DueItemTile extends StatelessWidget {
   final DueItem item;
@@ -390,7 +404,7 @@ class _DueItemTile extends StatelessWidget {
 }
 
 // ============================================================
-// Mini FAB widget
+// Mini FAB (unchanged)
 // ============================================================
 class _MiniFAB extends StatelessWidget {
   final IconData icon;
