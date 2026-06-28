@@ -210,21 +210,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         daysLeft: daysLeft,
                       ),
                       const SizedBox(height: 12),
-                      Center(
-                        child: TextButton.icon(
-                          onPressed: () => context.push('/slip-up'),
-                          icon: const Icon(Icons.heart_broken_outlined,
-                              size: 18, color: AppColors.primary),
-                          label: const Text(
-                            'Had a rough day? I slipped up',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
                       const DueThisWeekCard(),
                       const SizedBox(height: 16),
                       JarRowWidget(

@@ -4,7 +4,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../screens/transactions/log_expense_screen.dart';
 import '../../screens/transactions/log_income_screen.dart';
 import '../../screens/transactions/transfer_dialog.dart';
-import '../../screens/slip_up/slip_up_screen.dart';
 import '../../providers/budget_provider.dart';
 import '../../providers/due_items_provider.dart';
 import '../../widgets/due_items_sheet.dart';
@@ -132,16 +131,6 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
             },
           ),
           const SizedBox(height: 6),
-          _MiniFAB(
-            icon: Icons.heart_broken_rounded,
-            label: 'I slipped up',
-            onTap: () {
-              _toggle();
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SlipUpScreen()),
-              );
-            },
-          ),
           const SizedBox(height: 6),
           dueCountAsync.when(
             loading: () => _MiniFAB(
