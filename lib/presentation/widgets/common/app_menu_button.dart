@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 
 /// Reusable hamburger menu button that shows a popup with:
-/// Privacy Policy, Terms of Use, How to Use, Tips, and About.
+/// Settings, Disclaimer, Privacy Policy, Terms of Use, How to Use, Tips, and About.
 class AppMenuButton extends StatelessWidget {
   /// Override icon color (e.g. white for dark headers).
   final Color? iconColor;
@@ -75,14 +75,14 @@ class AppMenuButton extends StatelessWidget {
         //     Text('Emergency Fund'),
         //   ]),
         // ),
-        const PopupMenuItem(
-          value: 'trends',
-          child: Row(children: [
-            Icon(Icons.trending_up, size: 20, color: AppColors.primary),
-            SizedBox(width: 12),
-            Text('Spending Trends'),
-          ]),
-        ),
+        // const PopupMenuItem(
+        //   value: 'trends',
+        //   child: Row(children: [
+        //     Icon(Icons.trending_up, size: 20, color: AppColors.primary),
+        //     SizedBox(width: 12),
+        //     Text('Spending Trends'),
+        //   ]),
+        // ),
         const PopupMenuDivider(),
         const PopupMenuItem(
           value: 'how_to_use',
@@ -98,6 +98,14 @@ class AppMenuButton extends StatelessWidget {
             Icon(Icons.lightbulb_outline, size: 20, color: AppColors.primary),
             SizedBox(width: 12),
             Text('Tips'),
+          ]),
+        ),
+        const PopupMenuItem(
+          value: 'disclaimer',
+          child: Row(children: [
+            Icon(Icons.gavel_outlined, size: 20, color: AppColors.primary),
+            SizedBox(width: 12),
+            Text('Disclaimer'),
           ]),
         ),
         const PopupMenuItem(
