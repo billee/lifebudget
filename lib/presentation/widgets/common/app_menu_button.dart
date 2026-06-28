@@ -50,31 +50,31 @@ class AppMenuButton extends StatelessWidget {
         //     Text('Bills'),
         //   ]),
         // ),
-        const PopupMenuItem(
-          value: 'debts',
-          child: Row(children: [
-            Icon(Icons.account_balance_wallet,
-                size: 20, color: AppColors.primary),
-            SizedBox(width: 12),
-            Text('Debts'),
-          ]),
-        ),
-        const PopupMenuItem(
-          value: 'summary',
-          child: Row(children: [
-            Icon(Icons.pie_chart, size: 20, color: AppColors.primary),
-            SizedBox(width: 12),
-            Text('Summary'),
-          ]),
-        ),
-        const PopupMenuItem(
-          value: 'emergency-fund',
-          child: Row(children: [
-            Icon(Icons.shield, size: 20, color: AppColors.primary),
-            SizedBox(width: 12),
-            Text('Emergency Fund'),
-          ]),
-        ),
+        // const PopupMenuItem(
+        //   value: 'debts',
+        //   child: Row(children: [
+        //     Icon(Icons.account_balance_wallet,
+        //         size: 20, color: AppColors.primary),
+        //     SizedBox(width: 12),
+        //     Text('Debts'),
+        //   ]),
+        // ),
+        // const PopupMenuItem(
+        //   value: 'summary',
+        //   child: Row(children: [
+        //     Icon(Icons.pie_chart, size: 20, color: AppColors.primary),
+        //     SizedBox(width: 12),
+        //     Text('Summary'),
+        //   ]),
+        // ),
+        // const PopupMenuItem(
+        //   value: 'emergency-fund',
+        //   child: Row(children: [
+        //     Icon(Icons.shield, size: 20, color: AppColors.primary),
+        //     SizedBox(width: 12),
+        //     Text('Emergency Fund'),
+        //   ]),
+        // ),
         const PopupMenuItem(
           value: 'trends',
           child: Row(children: [
