@@ -1,121 +1,139 @@
-import '../database/database_helper.dart';
-import '../database/database_constants.dart';
+import 'package:sqflite/sqflite.dart';
 import '../models/expected_expense_model.dart';
+import '../database/database_helper.dart';
 
 class ExpectedExpenseRepository {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
-  Future<List<ExpectedExpense>> getForMonth(String month) async {
-    final db = await _dbHelper.database;
-    final maps = await db.query(
-      DatabaseConstants.expectedExpensesTable,
-      where: 'month = ?',
-      whereArgs: [month],
-      orderBy: 'title ASC',
-    );
-    return maps.map((m) => ExpectedExpense.fromMap(m)).toList();
-  }
+  // Local constants – no external file needed
+  static const String _table = 'expected_expenses';
+  static const String _colId = 'id';
+  static const String _colMonth = 'month';
+  static const String _colTitle = 'title';
+  static const String _colFrequency = 'frequency';
+  static const String _colAmount = 'amount';
+  static const String _colDueDate = 'due_date';
+
+  Future<Database> get database async => await _dbHelper.database;
 
   Future<int> insert(ExpectedExpense expense) async {
-    final db = await _dbHelper.database;
-    return await db.insert(
-        DatabaseConstants.expectedExpensesTable, expense.toMap());
+    final db = await database;
+    final map = expense.toMap();
+    map.remove(_colId);
+    return await db.insert(_table, map);
   }
 
   Future<int> update(ExpectedExpense expense) async {
-    final db = await _dbHelper.database;
+    final db = await database;
+    final map = expense.toMap();
     return await db.update(
-      DatabaseConstants.expectedExpensesTable,
-      expense.toMap(),
-      where: 'id = ?',
+      _table,
+      map,
+      where: '$_colId = ?',
       whereArgs: [expense.id],
     );
   }
 
   Future<int> delete(int id) async {
-    final db = await _dbHelper.database;
+    final db = await database;
     return await db.delete(
-      DatabaseConstants.expectedExpensesTable,
-      where: 'id = ?',
+      _table,
+      where: '$_colId = ?',
       whereArgs: [id],
     );
   }
 
-  Future<void> deleteByTitle(String title) async {
-    final db = await _dbHelper.database;
-    // Case-insensitive delete
-    await db.delete(
-      DatabaseConstants.expectedExpensesTable,
-      where: 'LOWER(title) = LOWER(?)',
-      whereArgs: [title],
+  Future<List<ExpectedExpense>> getAllForMonth(String month) async {
+    final db = await database;
+    final result = await db.query(
+      _table,
+      where: '$_colMonth = ?',
+      whereArgs: [month],
+      orderBy: '$_colTitle ASC',
     );
+    return result.map((map) => ExpectedExpense.fromMap(map)).toList();
   }
 
-  // Upsert "Safely Spend" expense (creates or updates based on calculation)
-  // Ensures only one row exists per month.
-  Future<void> upsertSafelySpend(double amount, String month) async {
-    final db = await _dbHelper.database;
+  // Alias for compatibility
+  Future<List<ExpectedExpense>> getForMonth(String month) =>
+      getAllForMonth(month);
 
-    // Find all existing Safely Spend rows for this month
-    final existing = await db.query(
-      DatabaseConstants.expectedExpensesTable,
-      where: 'LOWER(title) = ? AND month = ?',
-      whereArgs: ['safely spend', month],
+  Future<List<ExpectedExpense>> getAll() async {
+    final db = await database;
+    final result = await db.query(
+      _table,
+      orderBy: '$_colMonth DESC, $_colTitle ASC',
     );
+    return result.map((map) => ExpectedExpense.fromMap(map)).toList();
+  }
 
-    // Delete all but the first one (clean up any duplicates)
-    if (existing.length > 1) {
-      final idsToDelete =
-          existing.skip(1).map((row) => row['id'] as int).toList();
-      await db.delete(
-        DatabaseConstants.expectedExpensesTable,
-        where: 'id IN (${idsToDelete.map((_) => '?').join(',')})',
-        whereArgs: idsToDelete,
-      );
+  Future<ExpectedExpense?> getById(int id) async {
+    final db = await database;
+    final result = await db.query(
+      _table,
+      where: '$_colId = ?',
+      whereArgs: [id],
+    );
+    if (result.isNotEmpty) {
+      return ExpectedExpense.fromMap(result.first);
     }
+    return null;
+  }
 
-    // Now get the single remaining row (or null if none)
-    final single = existing.isEmpty ? null : existing.first;
-
-    if (single != null) {
-      // Update existing
+  Future<void> upsertSafelySpend(double amount, String month) async {
+    final db = await database;
+    final existing = await db.query(
+      _table,
+      where: '$_colTitle = ? AND $_colMonth = ?',
+      whereArgs: ['Safely Spend', month],
+    );
+    if (existing.isNotEmpty) {
+      final id = existing.first[_colId] as int;
       await db.update(
-        DatabaseConstants.expectedExpensesTable,
-        {'amount': amount},
-        where: 'id = ?',
-        whereArgs: [single['id']],
+        _table,
+        {_colAmount: amount, _colDueDate: null},
+        where: '$_colId = ?',
+        whereArgs: [id],
       );
     } else {
-      // Insert new
-      await db.insert(DatabaseConstants.expectedExpensesTable, {
-        'title': 'Safely Spend',
-        'frequency': 'monthly',
-        'amount': amount,
-        'month': month,
-      });
+      await db.insert(
+        _table,
+        {
+          _colTitle: 'Safely Spend',
+          _colFrequency: 'monthly',
+          _colAmount: amount,
+          _colMonth: month,
+          _colDueDate: null,
+        },
+      );
     }
   }
 
-  /// Remove duplicate "Safely Spend" entries for the current month.
-  /// Call this once (e.g., after database initialization) to clean up existing duplicates.
   Future<void> deduplicateSafelySpend() async {
-    final db = await _dbHelper.database;
-    final month = DateTime.now().toIso8601String().substring(0, 7); // "YYYY-MM"
-
-    final rows = await db.query(
-      DatabaseConstants.expectedExpensesTable,
-      where: 'LOWER(title) = ? AND month = ?',
-      whereArgs: ['safely spend', month],
-      orderBy: 'id ASC',
+    final db = await database;
+    final all = await db.query(
+      _table,
+      where: '$_colTitle = ?',
+      whereArgs: ['Safely Spend'],
+      orderBy: '$_colMonth DESC',
     );
-
-    if (rows.length > 1) {
-      final idsToDelete = rows.skip(1).map((row) => row['id'] as int).toList();
+    if (all.length <= 1) return;
+    for (int i = 1; i < all.length; i++) {
+      final id = all[i][_colId] as int;
       await db.delete(
-        DatabaseConstants.expectedExpensesTable,
-        where: 'id IN (${idsToDelete.map((_) => '?').join(',')})',
-        whereArgs: idsToDelete,
+        _table,
+        where: '$_colId = ?',
+        whereArgs: [id],
       );
     }
+  }
+
+  Future<void> deleteForMonth(String month) async {
+    final db = await database;
+    await db.delete(
+      _table,
+      where: '$_colMonth = ?',
+      whereArgs: [month],
+    );
   }
 }

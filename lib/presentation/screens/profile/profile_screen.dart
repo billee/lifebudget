@@ -25,6 +25,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String _frequency = 'monthly';
   final _amountController = TextEditingController();
   int? _editingId;
+  DateTime? _dueDate; // NEW: optional due date
 
   @override
   void dispose() {
@@ -39,6 +40,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     setState(() {
       _frequency = 'monthly';
       _editingId = null;
+      _dueDate = null; // NEW
+    });
+  }
+
+  // NEW: show date picker
+  Future<void> _selectDueDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _dueDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        _dueDate = picked;
+      });
+    }
+  }
+
+  // NEW: clear due date
+  void _clearDueDate() {
+    setState(() {
+      _dueDate = null;
     });
   }
 
@@ -64,6 +88,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         frequency: _frequency,
         amount: amount,
         month: month,
+        dueDate: _dueDate, // NEW
       );
       await repo.insert(expense);
     } else {
@@ -73,6 +98,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         frequency: _frequency,
         amount: amount,
         month: month,
+        dueDate: _dueDate, // NEW
       );
       await repo.update(expense);
     }
@@ -101,6 +127,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _titleController.text = expense.title;
       _frequency = expense.frequency;
       _amountController.text = expense.amount.toStringAsFixed(0);
+      _dueDate = expense.dueDate; // NEW
     });
   }
 
@@ -144,6 +171,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         frequency: expense.frequency,
         amount: 0,
         month: expense.month,
+        dueDate: expense.dueDate, // keep dueDate (optional)
       );
       await repo.update(updated);
 
@@ -252,6 +280,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 fillColor: Colors.white,
               ),
             ),
+            // ======= NEW: DUE DATE SECTION =======
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading:
+                  const Icon(Icons.calendar_today, color: AppColors.primary),
+              title: Text(
+                _dueDate == null
+                    ? 'No due date (optional)'
+                    : 'Due: ${_dueDate!.toLocal().toString().split(' ')[0]}',
+                style: TextStyle(
+                  color: _dueDate == null ? AppColors.textSecondary : null,
+                ),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_dueDate != null)
+                    IconButton(
+                      icon: const Icon(Icons.clear, color: AppColors.critical),
+                      onPressed: _clearDueDate,
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.edit_calendar,
+                        color: AppColors.primary),
+                    onPressed: () => _selectDueDate(context),
+                  ),
+                ],
+              ),
+              onTap: () => _selectDueDate(context),
+            ),
+            // =====================================
             const SizedBox(height: 16),
             Row(
               children: [
@@ -316,8 +376,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         title: Text(exp.title,
                             style:
                                 const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text(
-                          '${exp.frequency[0].toUpperCase()}${exp.frequency.substring(1)} — ${formatAmount(displayAmount)}',
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${exp.frequency[0].toUpperCase()}${exp.frequency.substring(1)} — ${formatAmount(displayAmount)}',
+                            ),
+                            if (exp.dueDate != null) // NEW: show due date
+                              Text(
+                                'Due: ${exp.dueDate!.toLocal().toString().split(' ')[0]}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                          ],
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,

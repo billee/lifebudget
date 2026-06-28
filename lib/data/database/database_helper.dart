@@ -1,10 +1,32 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import 'database_constants.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
+
+  // Table names (local constants)
+  static const String transactionsTable = 'transactions';
+  static const String jarAllocationsTable = 'jar_allocations';
+  static const String expectedExpensesTable = 'expected_expenses';
+  static const String slipUpsTable = 'slip_ups';
+  static const String archivedTransactionsTable = 'archived_transactions';
+  static const String journalTable = 'journal_entries';
+  static const String goalsTable = 'goals';
+  static const String billsTable = 'bills';
+  static const String debtsTable = 'debts';
+
+  // Common column names
+  static const String colId = 'id';
+  static const String colMonth = 'month';
+  static const String colJarName = 'jar_name';
+  static const String colPercentage = 'percentage';
+  static const String colType = 'type';
+  static const String colJar = 'jar';
+  static const String colAmount = 'amount';
+  static const String colDate = 'date';
+  static const String colNote = 'note';
+  static const String colDueDate = 'due_date'; // NEW
 
   DatabaseHelper._init();
 
@@ -19,76 +41,77 @@ class DatabaseHelper {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 8, // <--- version bumped to 8 for debts table
+      version: 9, // <--- version bumped to 9 for due_date
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
   }
 
   Future<void> _createDB(Database db, int version) async {
-    // transactions table (now includes 'source' column)
+    // transactions table
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.transactionsTable} (
-        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
-        ${DatabaseConstants.colType} TEXT NOT NULL,
-        ${DatabaseConstants.colJar} TEXT NOT NULL,
-        ${DatabaseConstants.colAmount} REAL NOT NULL,
-        ${DatabaseConstants.colDate} TEXT NOT NULL,
-        ${DatabaseConstants.colNote} TEXT,
+      CREATE TABLE IF NOT EXISTS $transactionsTable (
+        $colId INTEGER PRIMARY KEY AUTOINCREMENT,
+        $colType TEXT NOT NULL,
+        $colJar TEXT NOT NULL,
+        $colAmount REAL NOT NULL,
+        $colDate TEXT NOT NULL,
+        $colNote TEXT,
         source TEXT
       )
     ''');
 
     // jar allocations table
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.jarAllocationsTable} (
-        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
-        ${DatabaseConstants.colMonth} TEXT NOT NULL,
-        ${DatabaseConstants.colJarName} TEXT NOT NULL,
-        ${DatabaseConstants.colPercentage} REAL NOT NULL
+      CREATE TABLE IF NOT EXISTS $jarAllocationsTable (
+        $colId INTEGER PRIMARY KEY AUTOINCREMENT,
+        $colMonth TEXT NOT NULL,
+        $colJarName TEXT NOT NULL,
+        $colPercentage REAL NOT NULL
       )
     ''');
 
-    // expected expenses table
+    // expected expenses table – now with due_date
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.expectedExpensesTable} (
-        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+      CREATE TABLE IF NOT EXISTS $expectedExpensesTable (
+        $colId INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         frequency TEXT NOT NULL,
-        amount REAL NOT NULL,
-        month TEXT NOT NULL
+        $colAmount REAL NOT NULL,
+        $colMonth TEXT NOT NULL,
+        $colDueDate TEXT
       )
     ''');
 
     // slip‑ups table
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.slipUpsTable} (
-        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT NOT NULL,
-        amount REAL,
+      CREATE TABLE IF NOT EXISTS $slipUpsTable (
+        $colId INTEGER PRIMARY KEY AUTOINCREMENT,
+        $colDate TEXT NOT NULL,
+        $colAmount REAL,
         mood TEXT NOT NULL,
-        note TEXT
+        $colNote TEXT
       )
     ''');
 
     // archived transactions table
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.archivedTransactionsTable} (
-        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
-        ${DatabaseConstants.colType} TEXT NOT NULL,
-        ${DatabaseConstants.colJar} TEXT NOT NULL,
-        ${DatabaseConstants.colAmount} REAL NOT NULL,
-        ${DatabaseConstants.colDate} TEXT NOT NULL,
-        ${DatabaseConstants.colNote} TEXT,
+      CREATE TABLE IF NOT EXISTS $archivedTransactionsTable (
+        $colId INTEGER PRIMARY KEY AUTOINCREMENT,
+        $colType TEXT NOT NULL,
+        $colJar TEXT NOT NULL,
+        $colAmount REAL NOT NULL,
+        $colDate TEXT NOT NULL,
+        $colNote TEXT,
         archived_month TEXT NOT NULL
       )
     ''');
 
     // journal table
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.journalTable} (
-        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT NOT NULL,
+      CREATE TABLE IF NOT EXISTS $journalTable (
+        $colId INTEGER PRIMARY KEY AUTOINCREMENT,
+        $colDate TEXT NOT NULL,
         mood TEXT NOT NULL,
         went_well TEXT,
         do_differently TEXT
@@ -97,8 +120,8 @@ class DatabaseHelper {
 
     // goals table
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.goalsTable} (
-        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+      CREATE TABLE IF NOT EXISTS $goalsTable (
+        $colId INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         targetAmount REAL NOT NULL,
         currentAmount REAL NOT NULL DEFAULT 0,
@@ -110,10 +133,10 @@ class DatabaseHelper {
 
     // bills table
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.billsTable} (
-        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+      CREATE TABLE IF NOT EXISTS $billsTable (
+        $colId INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
-        amount REAL NOT NULL,
+        $colAmount REAL NOT NULL,
         dueDate TEXT NOT NULL,
         category TEXT NOT NULL,
         isRecurring INTEGER NOT NULL DEFAULT 0,
@@ -124,8 +147,8 @@ class DatabaseHelper {
 
     // debts table
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.debtsTable} (
-        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+      CREATE TABLE IF NOT EXISTS $debtsTable (
+        $colId INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         totalAmount REAL NOT NULL,
         currentBalance REAL NOT NULL,
@@ -135,38 +158,27 @@ class DatabaseHelper {
         notes TEXT
       )
     ''');
-
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS ${DatabaseConstants.expectedExpensesTable} (
-        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        frequency TEXT NOT NULL,
-        amount REAL NOT NULL,
-        month TEXT NOT NULL,
-        due_date TEXT  -- NEW: optional due date in YYYY-MM-DD
-      )
-    ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
     // Migrations from version 4
     if (oldVersion < 4) {
       await db.execute('''
-        CREATE TABLE IF NOT EXISTS ${DatabaseConstants.jarAllocationsTable} (
-          ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
-          ${DatabaseConstants.colMonth} TEXT NOT NULL,
-          ${DatabaseConstants.colJarName} TEXT NOT NULL,
-          ${DatabaseConstants.colPercentage} REAL NOT NULL
+        CREATE TABLE IF NOT EXISTS $jarAllocationsTable (
+          $colId INTEGER PRIMARY KEY AUTOINCREMENT,
+          $colMonth TEXT NOT NULL,
+          $colJarName TEXT NOT NULL,
+          $colPercentage REAL NOT NULL
         )
       ''');
     }
 
-    // Migration for version 5: drop old goals table and recreate
+    // Version 5: drop old goals table and recreate
     if (oldVersion < 5) {
-      await db.execute('DROP TABLE IF EXISTS ${DatabaseConstants.goalsTable}');
+      await db.execute('DROP TABLE IF EXISTS $goalsTable');
       await db.execute('''
-        CREATE TABLE IF NOT EXISTS ${DatabaseConstants.goalsTable} (
-          ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS $goalsTable (
+          $colId INTEGER PRIMARY KEY AUTOINCREMENT,
           title TEXT NOT NULL,
           targetAmount REAL NOT NULL,
           currentAmount REAL NOT NULL DEFAULT 0,
@@ -177,23 +189,21 @@ class DatabaseHelper {
       ''');
     }
 
-    // New migration for version 6: add 'source' column to transactions table
+    // Version 6: add 'source' column to transactions
     if (oldVersion < 6) {
       try {
-        await db.execute(
-            'ALTER TABLE ${DatabaseConstants.transactionsTable} ADD COLUMN source TEXT');
-      } catch (e) {
-        // Column may already exist – ignore error
-      }
+        await db
+            .execute('ALTER TABLE $transactionsTable ADD COLUMN source TEXT');
+      } catch (e) {/* column may already exist */}
     }
 
-    // Migration for version 7: bills table
+    // Version 7: bills table
     if (oldVersion < 7) {
       await db.execute('''
-        CREATE TABLE IF NOT EXISTS ${DatabaseConstants.billsTable} (
-          ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS $billsTable (
+          $colId INTEGER PRIMARY KEY AUTOINCREMENT,
           title TEXT NOT NULL,
-          amount REAL NOT NULL,
+          $colAmount REAL NOT NULL,
           dueDate TEXT NOT NULL,
           category TEXT NOT NULL,
           isRecurring INTEGER NOT NULL DEFAULT 0,
@@ -203,11 +213,11 @@ class DatabaseHelper {
       ''');
     }
 
-    // Migration for version 8: debts table
+    // Version 8: debts table
     if (oldVersion < 8) {
       await db.execute('''
-        CREATE TABLE IF NOT EXISTS ${DatabaseConstants.debtsTable} (
-          ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS $debtsTable (
+          $colId INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           totalAmount REAL NOT NULL,
           currentBalance REAL NOT NULL,
@@ -217,12 +227,15 @@ class DatabaseHelper {
           notes TEXT
         )
       ''');
+    }
 
-      if (oldVersion < 9) {
-        try {
-          await db.execute(
-              'ALTER TABLE ${DatabaseConstants.expectedExpensesTable} ADD COLUMN due_date TEXT');
-        } catch (e) {/* column already exists */}
+    // Version 9: add due_date to expected_expenses
+    if (oldVersion < 9) {
+      try {
+        await db.execute(
+            'ALTER TABLE $expectedExpensesTable ADD COLUMN $colDueDate TEXT');
+      } catch (e) {
+        // column may already exist
       }
     }
   }
