@@ -42,14 +42,14 @@ class AppMenuButton extends StatelessWidget {
             Text('Settings'),
           ]),
         ),
-        const PopupMenuItem(
-          value: 'bills',
-          child: Row(children: [
-            Icon(Icons.receipt_long, size: 20, color: AppColors.primary),
-            SizedBox(width: 12),
-            Text('Bills'),
-          ]),
-        ),
+        // const PopupMenuItem(
+        //   value: 'bills',
+        //   child: Row(children: [
+        //     Icon(Icons.receipt_long, size: 20, color: AppColors.primary),
+        //     SizedBox(width: 12),
+        //     Text('Bills'),
+        //   ]),
+        // ),
         const PopupMenuItem(
           value: 'debts',
           child: Row(children: [
