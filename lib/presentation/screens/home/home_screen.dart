@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'health_ring_widget.dart';
 import 'jar_row_widget.dart';
 import 'home_header.dart';
 import 'daily_allowance_card.dart';
-import 'goals_preview.dart';
+import 'due_this_week_card.dart';
 import '../../providers/budget_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/expected_expenses_provider.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/due_items_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/emotional_messages.dart';
 import '../../../core/utils/number_formatter.dart';
@@ -186,6 +188,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: RefreshIndicator(
                 onRefresh: () async {
                   ref.invalidate(budgetStateProvider);
+                  ref.invalidate(dueItemsProvider);
                 },
                 child: SingleChildScrollView(
                   padding:
@@ -193,6 +196,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (survivalMode) ...[
+                        _SurvivalModeBanner(),
+                        const SizedBox(height: 12),
+                      ],
                       HealthRingWidget(
                         leftAmount: remaining,
                         totalBudget: totalIncome,
@@ -202,6 +209,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         dailyAllowance: dailyAllowance,
                         daysLeft: daysLeft,
                       ),
+                      const SizedBox(height: 12),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () => context.push('/slip-up'),
+                          icon: const Icon(Icons.heart_broken_outlined,
+                              size: 18, color: AppColors.primary),
+                          label: const Text(
+                            'Had a rough day? I slipped up',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const DueThisWeekCard(),
                       const SizedBox(height: 16),
                       JarRowWidget(
                         expectedExpenses: budget.expectedExpenses,
@@ -211,8 +235,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         daysLeftPerCategory: budget.daysLeftPerCategory,
                         daysInPeriod: budget.daysInPeriod,
                       ),
-                      const SizedBox(height: 24),
-                      const GoalsPreview(),
                       const SizedBox(height: 24),
                       if (!survivalMode && budget.remainingSafelySpend > 0)
                         _SafelySpendSection(
@@ -230,6 +252,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         );
       },
+    );
+  }
+}
+
+// ============================================================
+// Survival Mode Banner
+// ============================================================
+class _SurvivalModeBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.warning.withOpacity(0.35)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.shield_outlined, size: 18, color: AppColors.warning),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Survival mode — essentials only',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

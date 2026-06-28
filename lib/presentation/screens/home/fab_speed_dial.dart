@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../screens/transactions/log_expense_screen.dart';
 import '../../screens/transactions/log_income_screen.dart';
 import '../../screens/transactions/transfer_dialog.dart';
+import '../../screens/slip_up/slip_up_screen.dart';
 import '../../providers/budget_provider.dart';
 import '../../providers/due_items_provider.dart';
-import '../../providers/transaction_provider.dart';
-import '../../providers/bill_provider.dart';
-import '../../providers/expected_expenses_provider.dart';
-import '../../../data/models/transaction_model.dart';
-import '../../../services/notification_service.dart';
+import '../../widgets/due_items_sheet.dart';
 
 class FabSpeedDial extends ConsumerStatefulWidget {
   final bool isOnLeftSide;
@@ -70,165 +66,8 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
     }
   }
 
-  // ============================================================
-  // Due Items Dialog – uses StatefulBuilder for instant updates
-  // ============================================================
   Future<void> _showDueItemsDialog(BuildContext context) async {
-    // Fetch initial items
-    final initialItems = await ref.read(dueItemsProvider.future);
-    if (initialItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No bills or expenses due right now.'),
-          backgroundColor: AppColors.onTrack,
-        ),
-      );
-      return;
-    }
-
-    // Local mutable list
-    List<DueItem> items = List.from(initialItems);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return DraggableScrollableSheet(
-              initialChildSize: 0.6,
-              minChildSize: 0.3,
-              maxChildSize: 0.9,
-              expand: false,
-              builder: (context, scrollController) {
-                return Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Pay Bills & Expenses',
-                        style:
-                            Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${items.length} item${items.length > 1 ? 's' : ''} due',
-                        style: const TextStyle(color: AppColors.textSecondary),
-                      ),
-                      const SizedBox(height: 16),
-                      Expanded(
-                        child: items.isEmpty
-                            ? const Center(
-                                child: Text(
-                                  'All cleared! No items due.',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              )
-                            : ListView.separated(
-                                controller: scrollController,
-                                itemCount: items.length,
-                                separatorBuilder: (_, __) => const Divider(),
-                                itemBuilder: (context, index) {
-                                  final item = items[index];
-                                  return _DueItemTile(
-                                    item: item,
-                                    onMarkPaid: () async {
-                                      // Mark as paid in database
-                                      await _markAsPaid(context, ref, item);
-                                      // Remove from local list and update UI
-                                      setState(() {
-                                        items.removeAt(index);
-                                      });
-                                      // Invalidate providers to sync background data
-                                      ref.invalidate(dueItemsProvider);
-                                    },
-                                  );
-                                },
-                              ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _markAsPaid(
-      BuildContext context, WidgetRef ref, DueItem item) async {
-    try {
-      if (item.type == DueItemType.bill) {
-        final billRepo = ref.read(billRepositoryProvider);
-        await billRepo.markAsPaid(item.id);
-        await NotificationService.instance.cancelBillReminder(item.id);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${item.title} marked as paid'),
-              backgroundColor: AppColors.onTrack,
-            ),
-          );
-        }
-      } else {
-        final expenseRepo = ref.read(expectedExpenseRepositoryProvider);
-        await expenseRepo.markAsPaid(item.id);
-
-        final transactionRepo = ref.read(transactionRepositoryProvider);
-        final transaction = TransactionModel(
-          type: 'expense',
-          jar: item.title,
-          amount: item.amount,
-          date: DateTime.now(),
-          note: 'Paid: ${item.title}',
-        );
-        await transactionRepo.insertTransaction(transaction);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${item.title} expense paid and recorded'),
-              backgroundColor: AppColors.onTrack,
-            ),
-          );
-        }
-      }
-      // Invalidate all relevant providers to keep the rest of the app in sync
-      ref.invalidate(allTransactionsProvider);
-      ref.invalidate(expectedExpensesProvider);
-      ref.invalidate(budgetStateProvider);
-      ref.invalidate(dueItemsProvider);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error marking as paid: $e'),
-            backgroundColor: AppColors.critical,
-          ),
-        );
-      }
-    }
+    await DueItemsSheet.show(context, ref);
   }
 
   // ============================================================
@@ -290,6 +129,17 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
                       content: Text('No categories available for transfer')),
                 );
               }
+            },
+          ),
+          const SizedBox(height: 6),
+          _MiniFAB(
+            icon: Icons.heart_broken_rounded,
+            label: 'I slipped up',
+            onTap: () {
+              _toggle();
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SlipUpScreen()),
+              );
             },
           ),
           const SizedBox(height: 6),
@@ -356,58 +206,7 @@ class FabSpeedDialState extends ConsumerState<FabSpeedDial>
 }
 
 // ============================================================
-// Due Item Tile (unchanged)
-// ============================================================
-class _DueItemTile extends StatelessWidget {
-  final DueItem item;
-  final VoidCallback onMarkPaid;
-
-  const _DueItemTile({required this.item, required this.onMarkPaid});
-
-  @override
-  Widget build(BuildContext context) {
-    final isOverdue = item.isOverdue;
-    final daysUntil = item.dueDate.difference(DateTime.now()).inDays;
-    String status;
-    Color statusColor;
-    if (isOverdue) {
-      status = 'Overdue';
-      statusColor = AppColors.critical;
-    } else if (daysUntil == 0) {
-      status = 'Due today';
-      statusColor = AppColors.warning;
-    } else if (daysUntil == 1) {
-      status = 'Due tomorrow';
-      statusColor = AppColors.primary;
-    } else {
-      status = 'Due in $daysUntil days';
-      statusColor = AppColors.textSecondary;
-    }
-
-    return ListTile(
-      leading: Icon(
-        item.type == DueItemType.bill ? Icons.receipt : Icons.category,
-        color: isOverdue ? AppColors.critical : AppColors.primary,
-      ),
-      title: Text(item.title),
-      subtitle: Text(
-        '₱${item.amount.toStringAsFixed(0)} • $status',
-        style: TextStyle(color: statusColor),
-      ),
-      trailing: ElevatedButton(
-        onPressed: onMarkPaid,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.onTrack,
-          foregroundColor: Colors.white,
-        ),
-        child: const Text('Pay'),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// Mini FAB (unchanged)
+// Mini FAB
 // ============================================================
 class _MiniFAB extends StatelessWidget {
   final IconData icon;

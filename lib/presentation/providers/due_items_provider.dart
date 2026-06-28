@@ -77,3 +77,21 @@ final urgentDueItemsCountProvider = FutureProvider<int>((ref) async {
           (item) => item.dueDate.isBefore(today.add(const Duration(days: 1))))
       .length;
 });
+
+/// Unpaid items that are overdue or due within the next 7 days.
+final dueItemsThisWeekProvider = FutureProvider<List<DueItem>>((ref) async {
+  final items = await ref.watch(dueItemsProvider.future);
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+
+  return items.where((item) {
+    if (item.isOverdue) return true;
+    final due = DateTime(
+      item.dueDate.year,
+      item.dueDate.month,
+      item.dueDate.day,
+    );
+    final daysUntil = due.difference(today).inDays;
+    return daysUntil >= 0 && daysUntil <= 7;
+  }).toList();
+});

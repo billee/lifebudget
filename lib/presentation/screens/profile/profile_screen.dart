@@ -3,15 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../data/models/expected_expense_model.dart';
-import '../../../data/models/goal_model.dart';
 import '../../../data/models/transaction_model.dart';
 import '../../providers/expected_expenses_provider.dart';
 import '../../providers/budget_provider.dart';
-import '../../providers/goal_provider.dart';
 import '../../providers/transaction_provider.dart';
-import '../../providers/slip_up_provider.dart';
 import '../../widgets/common/lifebudget_scaffold.dart';
 import '../../widgets/common/app_menu_button.dart';
+import '../../widgets/budget/budget_templates_section.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -106,20 +104,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await repo.update(expense);
     }
 
-    // Sync to matching Goal if one exists
-    final goalRepo = ref.read(goalRepositoryProvider);
-    final goals = await goalRepo.getAll();
-    Goal? matchingGoal;
-    for (final goal in goals) {
-      if (goal.title.toLowerCase().trim() == title.toLowerCase().trim()) {
-        matchingGoal = goal;
-        break;
-      }
-    }
-    if (matchingGoal != null) {
-      // No further action
-    }
-
     ref.invalidate(expectedExpensesProvider);
     _clearForm();
   }
@@ -199,16 +183,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
       await transactionRepo.insertTransaction(deduction);
 
-      final goalRepo = ref.read(goalRepositoryProvider);
-      final goals = await goalRepo.getAll();
-      for (final goal in goals) {
-        if (goal.title.toLowerCase().trim() == jarName) {
-          await goalRepo.delete(goal.id!);
-          ref.invalidate(goalsProvider);
-          break;
-        }
-      }
-
       ref.invalidate(expectedExpensesProvider);
       ref.invalidate(allTransactionsProvider);
       ref.invalidate(jarSummariesProvider);
@@ -216,16 +190,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final repo = ref.read(expectedExpenseRepositoryProvider);
       await repo.delete(expense.id!);
       ref.invalidate(expectedExpensesProvider);
-
-      final goalRepo = ref.read(goalRepositoryProvider);
-      final goals = await goalRepo.getAll();
-      for (final goal in goals) {
-        if (goal.title.toLowerCase().trim() == jarName) {
-          await goalRepo.delete(goal.id!);
-          ref.invalidate(goalsProvider);
-          break;
-        }
-      }
     }
   }
 
@@ -247,6 +211,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const BudgetTemplatesSection(),
+            const SizedBox(height: 24),
+            const Divider(),
+            const SizedBox(height: 16),
             // Form section with a key
             Container(
               key: _formKey,
@@ -379,7 +347,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 if (expenses.isEmpty) {
                   return const Center(
                     child: Text(
-                      'No expected expenses yet.\nAdd one above!',
+                      'No expected expenses yet.\nPick a starter template above or add one below.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: AppColors.textSecondary),
                     ),

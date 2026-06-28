@@ -14,6 +14,7 @@ import '../screens/debt/debt_screen.dart';
 import '../screens/summary/monthly_summary_screen.dart';
 import '../screens/emergency/emergency_fund_screen.dart';
 import '../screens/trends/spending_trends_screen.dart';
+import '../screens/slip_up/slip_up_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -63,6 +64,10 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'trends',
                   builder: (context, state) => const SpendingTrendsScreen(),
+                ),
+                GoRoute(
+                  path: 'slip-up',
+                  builder: (context, state) => const SlipUpScreen(),
                 ),
               ],
             ),

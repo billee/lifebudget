@@ -200,6 +200,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const SizedBox(height: 24),
 
+          // Budget display
+          _buildSectionHeader('Budget'),
+          _buildCard([
+            SwitchListTile(
+              secondary:
+                  const Icon(Icons.shield_outlined, color: AppColors.primary),
+              title: const Text('Survival Mode'),
+              subtitle: const Text(
+                'Simpler home screen — hides safely spend extras',
+              ),
+              value: reminderSettings.survivalMode,
+              activeColor: AppColors.primary,
+              onChanged: (value) async {
+                await ref
+                    .read(reminderSettingsProvider.notifier)
+                    .setSurvivalMode(value);
+              },
+            ),
+          ]),
+
+          const SizedBox(height: 24),
+
           // Data Section
           _buildSectionHeader('Data'),
           _buildCard([
