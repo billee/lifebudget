@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/transaction_model.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/expected_expenses_provider.dart'; // <-- NEW
 import '../../widgets/common/lifebudget_scaffold.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../widgets/common/app_menu_button.dart';
@@ -26,22 +27,12 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
     super.dispose();
   }
 
-  List<String> _getUniqueCategories(List<TransactionModel> transactions) {
-    final categories = <String>{};
-    for (final t in transactions) {
-      if (t.type == 'income') {
-        categories.add('Income');
-      } else {
-        categories.add(t.jar);
-      }
-    }
-    return categories.toList()..sort();
-  }
-
   @override
   Widget build(BuildContext context) {
     final transactionsAsync = ref.watch(allTransactionsProvider);
     final summariesAsync = ref.watch(jarSummariesProvider);
+    // NEW: Watch expected expenses to get all jar names
+    final expectedExpensesAsync = ref.watch(expectedExpensesProvider);
 
     return LifeBudgetScaffold(
       appBar: AppBar(
@@ -55,31 +46,56 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),
         data: (allTransactions) {
-          // Filter transactions by current month using full date comparison
+          // Filter transactions by current month
           final now =
               MonthTransitionService.debugOverrideDate ?? DateTime.now();
           final transactions = allTransactions.where((t) {
             final date = t.date;
-            // Match by year AND month for consistency
             return date.year == now.year && date.month == now.month;
           }).toList();
 
           final summaries = summariesAsync.valueOrNull ?? {};
 
-          // Calculate totals from filtered transactions
+          // Calculate totals
           double totalIncome = 0;
           for (final t in transactions) {
-            if (t.type == 'income') {
-              totalIncome += t.amount;
+            if (t.type == 'income') totalIncome += t.amount;
+          }
+          double totalSpent = 0;
+          for (final t in transactions) {
+            if (t.type == 'expense' || t.type == 'savings')
+              totalSpent += t.amount;
+          }
+
+          // --- NEW: Build category set from both expected expenses and transactions ---
+          final Set<String> categorySet = {};
+
+          // Always include "Income"
+          categorySet.add('Income');
+
+          // Add jar names from expected expenses (if loaded)
+          expectedExpensesAsync.when(
+            loading: () => {},
+            error: (_, __) => {},
+            data: (expectedExpenses) {
+              for (final exp in expectedExpenses) {
+                // Skip "safely spend" if you don't want it in filters
+                if (exp.title.toLowerCase() != 'safely spend') {
+                  categorySet.add(exp.title);
+                }
+              }
+            },
+          );
+
+          // Also add any jar names from actual transactions (in case of orphan jars)
+          for (final t in transactions) {
+            if (t.type != 'income') {
+              categorySet.add(t.jar);
             }
           }
 
-          double totalSpent = 0;
-          for (final t in transactions) {
-            if (t.type == 'expense' || t.type == 'savings') {
-              totalSpent += t.amount;
-            }
-          }
+          // Convert to sorted list
+          final allCategories = categorySet.toList()..sort();
 
           // Filter transactions based on search and category
           final filteredTransactions = transactions.where((t) {
@@ -95,7 +111,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
 
           return Column(
             children: [
-              // Summary cards – side by side
+              // Summary cards
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
@@ -120,7 +136,6 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                   ],
                 ),
               ),
-
               const Divider(height: 1),
 
               // Search bar
@@ -160,8 +175,8 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                 ),
               ),
 
-              // Filter chips
-              if (transactions.isNotEmpty)
+              // --- Filter chips using combined categories ---
+              if (transactions.isNotEmpty || allCategories.isNotEmpty)
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -177,20 +192,18 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                         },
                       ),
                       const SizedBox(width: 8),
-                      ..._getUniqueCategories(transactions)
-                          .map((category) => Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: FilterChip(
-                                  label: Text(category),
-                                  selected: _filterCategory == category,
-                                  onSelected: (selected) {
-                                    setState(() {
-                                      _filterCategory =
-                                          selected ? category : null;
-                                    });
-                                  },
-                                ),
-                              )),
+                      ...allCategories.map((category) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: FilterChip(
+                              label: Text(category),
+                              selected: _filterCategory == category,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _filterCategory = selected ? category : null;
+                                });
+                              },
+                            ),
+                          )),
                     ],
                   ),
                 ),
@@ -307,12 +320,11 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
     );
   }
 
+  // ---------------------- Helper methods (unchanged) ----------------------
   void _showDeleteDialog(
       BuildContext context, WidgetRef ref, TransactionModel t) {
-    // Check if this is a transfer transaction
     final isTransfer = t.note != null &&
         (t.note!.contains('Transfer to') || t.note!.contains('Transfer from'));
-
     if (isTransfer) {
       _showTransferDeleteDialog(context, ref, t);
     } else {
@@ -352,7 +364,6 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
 
   void _showTransferDeleteDialog(
       BuildContext context, WidgetRef ref, TransactionModel t) {
-    // Find the paired transfer transaction
     final transactionsAsync = ref.read(allTransactionsProvider);
     TransactionModel? pairedTransaction;
 
@@ -424,7 +435,6 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
           TextButton(
             onPressed: () async {
               final repo = ref.read(transactionRepositoryProvider);
-              // Delete both transactions
               await repo.deleteTransaction(t.id!);
               if (pairedTransaction != null) {
                 await repo.deleteTransaction(pairedTransaction!.id!);
@@ -450,40 +460,20 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
 
   TransactionModel? _findPairedTransfer(
       TransactionModel t, List<TransactionModel> transactions) {
-    // Determine if this is "Transfer to" or "Transfer from"
     final isTransferTo = t.note?.contains('Transfer to') ?? false;
     final isTransferFrom = t.note?.contains('Transfer from') ?? false;
-
     if (!isTransferTo && !isTransferFrom) return null;
 
-    // Extract the category name from the note
-    // "Transfer to Food" -> "Food"
-    // "Transfer from Commute" -> "Commute"
     final noteParts = t.note!.split(' ');
     final targetCategory = noteParts.length > 2 ? noteParts[2] : null;
-
     if (targetCategory == null) return null;
 
-    // Look for the paired transaction:
-    // - Same date
-    // - Opposite amount sign
-    // - Complementary note
     for (final other in transactions) {
-      if (other.id == t.id) continue; // Skip self
-
-      // Check same date
+      if (other.id == t.id) continue;
       if (other.date.year != t.date.year ||
           other.date.month != t.date.month ||
-          other.date.day != t.date.day) {
-        continue;
-      }
-
-      // Check opposite amount
-      if ((t.amount + other.amount).abs() > 0.01) {
-        continue; // Amounts should cancel out
-      }
-
-      // Check complementary note
+          other.date.day != t.date.day) continue;
+      if ((t.amount + other.amount).abs() > 0.01) continue;
       if (other.note == null) continue;
 
       if (isTransferTo &&
@@ -495,7 +485,6 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
         return other;
       }
     }
-
     return null;
   }
 
@@ -595,6 +584,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
   }
 }
 
+// ---- _SummaryCard (unchanged) ----
 class _SummaryCard extends StatelessWidget {
   final String title;
   final double amount;
