@@ -248,52 +248,60 @@ class DatabaseHelper {
     }
   }
 
-// Inside DatabaseHelper class
+  // ============================================================
+  //  BACKUP / RESTORE – ROBUST VERSION
+  // ============================================================
 
-  /// Export all tables as a Map.
+  /// Export all user tables (excluding system tables) as a Map.
   Future<Map<String, dynamic>> exportAllData() async {
     final db = await database;
+
+    // Get all user-defined table names (skip sqlite_*, android_*, etc.)
+    final tableNames = await db
+        .rawQuery(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%'")
+        .then((rows) => rows.map((row) => row['name'] as String).toList());
+
     final result = <String, dynamic>{};
-
-    // List your tables
-    final tables = ['transactions', 'expected_expenses', 'bills', 'debts'];
-
-    for (final table in tables) {
-      final list = await db.query(table);
-      result[table] = list;
+    for (final table in tableNames) {
+      final rows = await db.query(table);
+      result[table] = rows;
     }
-
-    // If you have other tables, add them here
     return result;
   }
 
-  /// Import data from a backup Map (replaces everything).
+  /// Import data from a backup Map (replaces everything atomically).
   Future<void> importAllData(Map<String, dynamic> data) async {
     final db = await database;
 
-    // Start a transaction
     await db.transaction((txn) async {
-      // Delete existing data from all tables (in order to avoid foreign key conflicts)
-      final tables = [
-        'transactions',
-        'expected_expenses',
-        'bills',
-        'debts',
-        'settings'
-      ];
-      for (final table in tables) {
-        await txn.delete(table);
-      }
+      // 1. Temporarily disable foreign key constraints
+      await txn.execute('PRAGMA foreign_keys = OFF;');
 
-      // Insert new data
-      for (final table in tables) {
-        final rows = data[table] as List<dynamic>?;
-        if (rows != null && rows.isNotEmpty) {
-          for (final row in rows) {
-            await txn.insert(table, row as Map<String, dynamic>);
+      try {
+        final tableNames = data.keys.toList();
+
+        // 2. Delete all existing data (reverse order to avoid FK issues)
+        for (final table in tableNames.reversed) {
+          await txn.delete(table);
+        }
+
+        // 3. Insert new data (original order)
+        for (final table in tableNames) {
+          final rows = data[table] as List<dynamic>?;
+          if (rows != null && rows.isNotEmpty) {
+            for (final row in rows) {
+              await txn.insert(table, row as Map<String, dynamic>);
+            }
           }
         }
+      } finally {
+        // 4. Re‑enable foreign key constraints
+        await txn.execute('PRAGMA foreign_keys = ON;');
       }
     });
   }
+
+  // ========== All your existing CRUD / convenience methods stay below ==========
+  // (They are unchanged – you can paste them here if you had any.)
 }
