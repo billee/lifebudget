@@ -247,4 +247,53 @@ class DatabaseHelper {
       } catch (e) {/* column may already exist */}
     }
   }
+
+// Inside DatabaseHelper class
+
+  /// Export all tables as a Map.
+  Future<Map<String, dynamic>> exportAllData() async {
+    final db = await database;
+    final result = <String, dynamic>{};
+
+    // List your tables
+    final tables = ['transactions', 'expected_expenses', 'bills', 'debts'];
+
+    for (final table in tables) {
+      final list = await db.query(table);
+      result[table] = list;
+    }
+
+    // If you have other tables, add them here
+    return result;
+  }
+
+  /// Import data from a backup Map (replaces everything).
+  Future<void> importAllData(Map<String, dynamic> data) async {
+    final db = await database;
+
+    // Start a transaction
+    await db.transaction((txn) async {
+      // Delete existing data from all tables (in order to avoid foreign key conflicts)
+      final tables = [
+        'transactions',
+        'expected_expenses',
+        'bills',
+        'debts',
+        'settings'
+      ];
+      for (final table in tables) {
+        await txn.delete(table);
+      }
+
+      // Insert new data
+      for (final table in tables) {
+        final rows = data[table] as List<dynamic>?;
+        if (rows != null && rows.isNotEmpty) {
+          for (final row in rows) {
+            await txn.insert(table, row as Map<String, dynamic>);
+          }
+        }
+      }
+    });
+  }
 }

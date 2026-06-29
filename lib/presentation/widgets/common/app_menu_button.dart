@@ -29,6 +29,8 @@ class AppMenuButton extends StatelessWidget {
           context.go('/emergency-fund');
         } else if (value == 'trends') {
           context.go('/trends');
+        } else if (value == 'backup') {
+          context.go('/profile/backup-restore');
         } else {
           context.go('/profile/info/$value');
         }
@@ -133,6 +135,23 @@ class AppMenuButton extends StatelessWidget {
             Text('About'),
           ]),
         ),
+
+        const PopupMenuItem(
+          value: 'backup',
+          child: Row(children: [
+            Icon(Icons.download_outlined, size: 20, color: AppColors.primary),
+            SizedBox(width: 12),
+            Text('Backup & Restore'),
+          ]),
+        ),
+        // const PopupMenuItem(
+        //   value: 'restore',
+        //   child: Row(children: [
+        //     Icon(Icons.restore_outlined, size: 20, color: AppColors.primary),
+        //     SizedBox(width: 12),
+        //     Text('Restore'),
+        //   ]),
+        // ),
       ],
     );
   }

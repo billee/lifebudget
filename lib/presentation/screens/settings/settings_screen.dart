@@ -6,6 +6,10 @@ import '../../providers/user_provider.dart';
 import '../../../services/notification_service.dart';
 import '../../widgets/common/lifebudget_scaffold.dart';
 import '../../widgets/common/app_menu_button.dart';
+import '../../../services/backup_service.dart'; // for BackupService
+import '../../providers/budget_provider.dart'; // for budgetStateProvider
+import '../../providers/transaction_provider.dart'; // for allTransactionsProvider
+import '../../providers/expected_expenses_provider.dart'; // for expectedExpensesProvider
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -228,28 +232,84 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ListTile(
               leading:
                   const Icon(Icons.download_outlined, color: AppColors.primary),
-              title: const Text('Export Data'),
-              subtitle: const Text('Coming soon'),
+              title: const Text('Backup'),
+              subtitle: const Text('Save your data to a file'),
               trailing: const Icon(Icons.chevron_right,
                   color: AppColors.textSecondary),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Export feature coming soon!')),
-                );
+              onTap: () async {
+                try {
+                  final service = BackupService();
+                  final path = await service.exportBackup(share: false);
+                  if (path != null && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Backup saved successfully!')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text('Backup failed: $e'),
+                          backgroundColor: Colors.red),
+                    );
+                  }
+                }
               },
             ),
             const Divider(height: 1),
             ListTile(
               leading:
-                  const Icon(Icons.backup_outlined, color: AppColors.primary),
-              title: const Text('Backup & Restore'),
-              subtitle: const Text('Coming soon'),
+                  const Icon(Icons.restore_outlined, color: AppColors.primary),
+              title: const Text('Restore'),
+              subtitle: const Text('Restore data from a backup file'),
               trailing: const Icon(Icons.chevron_right,
                   color: AppColors.textSecondary),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Backup feature coming soon!')),
+              onTap: () async {
+                // Show confirmation dialog first
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Restore Data?'),
+                    content: const Text(
+                        'This will replace all current data with the backup. Are you sure?'),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancel')),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.critical),
+                        child: const Text('Restore'),
+                      ),
+                    ],
+                  ),
                 );
+                if (confirm != true) return;
+
+                try {
+                  final service = BackupService();
+                  final success = await service.importBackup();
+                  if (success && mounted) {
+                    // Invalidate providers to refresh UI
+                    ref.invalidate(budgetStateProvider);
+                    ref.invalidate(allTransactionsProvider);
+                    ref.invalidate(expectedExpensesProvider);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Data restored successfully!')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text('Restore failed: $e'),
+                          backgroundColor: Colors.red),
+                    );
+                  }
+                }
               },
             ),
           ]),

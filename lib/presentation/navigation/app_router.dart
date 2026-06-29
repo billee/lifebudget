@@ -14,6 +14,7 @@ import '../screens/debt/debt_screen.dart';
 import '../screens/summary/monthly_summary_screen.dart';
 import '../screens/emergency/emergency_fund_screen.dart';
 import '../screens/trends/spending_trends_screen.dart';
+import '../screens/settings/backup_restore_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -92,6 +93,10 @@ final appRouter = GoRouter(
                     final type = state.pathParameters['type']!;
                     return InfoScreen.fromType(type);
                   },
+                ),
+                GoRoute(
+                  path: 'backup-restore',
+                  builder: (context, state) => const BackupRestoreScreen(),
                 ),
               ],
             ),
